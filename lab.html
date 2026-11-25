@@ -123,6 +123,10 @@
   .chip{display:inline-block;font-family:Georgia,serif;font-size:15px;letter-spacing:0;text-transform:none;padding:2px 10px;
     border-radius:999px;background:color-mix(in srgb, var(--tc) 28%, transparent);border:1px solid var(--tc);color:var(--cream)}
   .chip.gastada{background:transparent;border-color:rgba(255,255,255,.15);color:rgba(255,255,255,.32);text-decoration:line-through}
+  .tb-rem{display:block;margin-top:6px;font-size:15px;color:var(--cream);line-height:1.4;max-width:760px}
+  .tb-rem b{color:var(--gold);font-family:Georgia,serif;font-size:18px}
+  .modal .meta .m-rem{background:#10202f;color:var(--gold);border-radius:999px;padding:3px 10px;letter-spacing:1px}
+  .modal .meta .m-pts small{text-transform:none;letter-spacing:0;color:#7a6a3a;font-weight:600}
 
   /* ---------- Tablero ---------- */
   .board{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
@@ -289,6 +293,13 @@
         <span class="seg"><button id="sonSi" onclick="ponerSonidos(true)">Sí</button><button id="sonNo" onclick="ponerSonidos(false)">No</button></span></div>
     </div>
 
+    <span class="lbl">Remontada</span>
+    <div class="vozbox">
+      <div class="fila"><span class="et">⚡ Remontada para el último</span>
+        <span class="seg"><button id="remSi" onclick="ponerRemontada(true)">Sí</button><button id="remNo" onclick="ponerRemontada(false)">No</button></span></div>
+      <p class="nota">Una vez por partida, apenas se pasa la mitad de las preguntas (y antes del 65 %): si el último lugar va a <span class="nRezago"></span> puntos o más del primero, juega en ese momento su pregunta de menor valor, y si acierta suma la mitad de lo que le falta para alcanzar al primero. El primer lugar no puede robarla. No juega de más: esa pregunta sale de las suyas. Si su pregunta más barata ya vale eso o más, no hace falta y no sale.</p>
+    </div>
+
     <button class="btn btn-gold go" onclick="startGame()">Comenzar el juego ▸</button>
   </section>
 
@@ -315,6 +326,7 @@
       Gira la ruleta: elige el tema y, de los valores que le quedan al equipo, el puntaje (cada equipo juega una vez cada valor, en desorden).
       La voz lee la pregunta y, al terminar, corren <span class="nTurno"></span> segundos. Toca la letra que diga el equipo:
       si falla, se tacha y se abre el robo (<span class="nRobo"></span> segundos y hojas en alto); cada equipo que tenga la correcta suma la mitad.
+      Al pasar la mitad de las preguntas, el último lugar puede tener su ⚡ remontada: vale la mitad de lo que le falta para el primero, y el primero no la roba.
       Tocar el nombre de un equipo le da el turno; tocar una casilla la abre sin ruleta.</p>
   </section>
 
@@ -734,7 +746,9 @@ let teamCount = 4;
 let used = {};         // "c-r" -> {turno, acerto, robaron}
 let turn = 0;          // equipo al que le toca
 let P = null;          // la pregunta abierta
-let ajustes = {voz:true, vozNombre:"", velocidad:1, sonidos:true};
+let remontada = null;  // null: todavía no; {pendientes, jugaron}: ya salió (o {sinRezagado} si nadie iba rezagado)
+const REM_DESDE = 0.5, REM_HASTA = 0.65, REZAGO_MIN = 500;  // ventana (fracción de preguntas) y distancia al 1.º
+let ajustes = {voz:true, vozNombre:"", velocidad:1, sonidos:true, remontada:true};
 try{ Object.assign(ajustes, JSON.parse(localStorage.getItem(K_AJUSTES) || "{}")); }catch(e){}
 
 function guardarAjustes(){ try{ localStorage.setItem(K_AJUSTES, JSON.stringify(ajustes)); }catch(e){} }
@@ -786,16 +800,58 @@ function ajustarTurno(){
   for(let n = 0; n < teams.length && !bolsa(turn).length; n++) turn = (turn + 1) % teams.length;
 }
 // Primero el tema (entre los que tienen algo para este equipo) y luego el valor, sacado de su bolsa.
-function elegirCasilla(){
-  const cand = candidatos(turn);
+// En la remontada sólo entra el valor más bajo que le quede (la pregunta más fácil).
+function elegirCasilla(eq, minimo){
+  let cand = candidatos(eq);
   if(!cand.length) return null;
+  if(minimo){ const vmin = Math.min(...cand.map(x => x.v)); cand = cand.filter(x => x.v === vmin); }
   const temas = [...new Set(cand.map(x => x.c))];
   const c = temas[Math.floor(Math.random() * temas.length)];
   const delTema = cand.filter(x => x.c === c);
-  const b = bolsa(turn);
+  const b = bolsa(eq);
   const urna = delTema.flatMap(x => Array(Math.max(1, b.filter(v => v === x.v).length)).fill(x));
   const el = urna[Math.floor(Math.random() * urna.length)];
   return {c:el.c, r:el.r, temas:new Set(temas), valores:delTema.map(x => x.v).sort((a, b2) => a - b2)};
+}
+/* ---------- Remontada ---------- */
+// Una vez por partida: entre la mitad y el 65 % de las preguntas, si el último lugar va a REZAGO_MIN o más
+// del primero, juega en ese momento su pregunta de menor valor y, si acierta, suma la mitad de lo que le
+// falta para alcanzar al primero (o lo de la casilla, si es más). El primer lugar no puede robarla.
+// La pregunta sale de su bolsa: no juega de más, sólo la adelanta.
+function infoRemontada(){
+  if(ajustes.remontada === false || !remontada || !remontada.pendientes || !remontada.pendientes.length) return null;
+  const eq = remontada.pendientes[0];
+  const max = Math.max(...teams.map(t => t.score));
+  const cand = candidatos(eq);
+  const vmin = cand.length ? Math.min(...cand.map(x => x.v)) : 0;
+  const mitadBrecha = Math.round(Math.max(0, max - teams[eq].score) / 2 / 50) * 50;
+  return {equipo:eq, mitad:mitadBrecha, valor:Math.max(vmin, mitadBrecha), casilla:vmin};
+}
+function revisarRemontada(){
+  if(ajustes.remontada === false || remontada || !teams.length) return false;
+  const T = totalPreguntas(), h = usadas();
+  if(h < Math.ceil(T * REM_DESDE)) return false;
+  if(h >= Math.ceil(T * REM_HASTA)){ remontada = {pendientes:[], jugaron:[], sinRezagado:true}; return false; }
+  const sc = teams.map(t => t.score), max = Math.max(...sc), min = Math.min(...sc);
+  if(max - min < REZAGO_MIN) return false;
+  // Sólo si de verdad le sube el valor: si va atrás sólo porque sacó primero sus valores bajos, su pregunta
+  // más barata ya vale eso o más y no hace falta. Si hay empate en el último lugar, la juegan todos,
+  // empezando por el que tiene el turno o el que sigue.
+  const mitadBrecha = Math.round((max - min) / 2 / 50) * 50;
+  const sirve = i => { const c = candidatos(i); return c.length && mitadBrecha > Math.min(...c.map(x => x.v)); };
+  const ultimos = teams.map((t, i) => (i - turn + teams.length) % teams.length)
+    .sort((a, b) => a - b).map(d => (turn + d) % teams.length)
+    .filter(i => teams[i].score === min && bolsa(i).length && sirve(i));
+  if(!ultimos.length) return false;
+  remontada = {pendientes:ultimos, jugaron:[]};
+  return true;
+}
+function equipoActivo(){ const r = infoRemontada(); return r ? r.equipo : turn; }
+// Quiénes pueden robar la pregunta abierta: todos menos el que la contestó; en la remontada, tampoco el 1.º.
+function robadores(){
+  if(!P) return [];
+  const max = Math.max(...teams.map(t => t.score));
+  return teams.map((t, i) => i).filter(i => i !== P.equipo && !(P.remontada && teams[i].score === max));
 }
 function chipsBolsa(i){
   const b = bolsa(i);
@@ -945,7 +1001,10 @@ function buildSetup(){
 }
 function ponerVoz(si){ ajustes.voz = si; guardarAjustes(); if(!si) voz.callar(); pintarAjustes(); pintarVozBtn(); }
 function ponerSonidos(si){ ajustes.sonidos = si; guardarAjustes(); pintarAjustes(); if(si){ despertarAudio(); SON.ding(); } }
+function ponerRemontada(si){ ajustes.remontada = si; guardarAjustes(); pintarAjustes(); }
 function pintarAjustes(){
+  $("remSi").classList.toggle("on", ajustes.remontada !== false);
+  $("remNo").classList.toggle("on", ajustes.remontada === false);
   $("vozSi").classList.toggle("on", !!ajustes.voz);
   $("vozNo").classList.toggle("on", !ajustes.voz);
   $("sonSi").classList.toggle("on", !!ajustes.sonidos);
@@ -978,7 +1037,7 @@ function probarVoz(){
 }
 
 /* ---------- Juego guardado (por si se recarga la página) ---------- */
-function guardar(){ try{ localStorage.setItem(K_JUEGO, JSON.stringify({teams, used, turn, t:Date.now()})); }catch(e){} }
+function guardar(){ try{ localStorage.setItem(K_JUEGO, JSON.stringify({teams, used, turn, remontada, t:Date.now()})); }catch(e){} }
 function leerGuardado(){
   try{
     const g = JSON.parse(localStorage.getItem(K_JUEGO) || "null");
@@ -999,7 +1058,7 @@ function pintarPendiente(){
 }
 function continuarGuardado(){
   const g = leerGuardado(); if(!g) return;
-  teams = g.teams; used = g.used; turn = g.turn || 0;
+  teams = g.teams; used = g.used; turn = g.turn || 0; remontada = g.remontada || null;
   if(turn >= teams.length) turn = 0;
   mostrarJuego();
 }
@@ -1009,7 +1068,7 @@ function descartarGuardado(){ try{ localStorage.removeItem(K_JUEGO); }catch(e){}
 function startGame(){
   const inputs = [...document.querySelectorAll("#names input")];
   teams = inputs.map((inp, i) => ({name:(inp.value.trim() || ("Equipo " + (i + 1))), score:0, color:COLORS[i % COLORS.length]}));
-  used = {}; turn = 0;
+  used = {}; turn = 0; remontada = null;
   mostrarJuego();
 }
 function mostrarJuego(){
@@ -1029,7 +1088,7 @@ function newGame(sinPreguntar){
 }
 function resetScores(sinPreguntar){
   if(!sinPreguntar && !confirm("¿Reiniciar el marcador? Se borran los puntos y el tablero vuelve a empezar.")) return;
-  teams.forEach(t => t.score = 0); used = {}; turn = 0;
+  teams.forEach(t => t.score = 0); used = {}; turn = 0; remontada = null;
   guardar(); renderAll();
 }
 function cerrarTodo(){ voz.callar(); detenerReloj(); ruletaGen++; P = null; $("ruletaRoot").innerHTML = ""; $("modalRoot").innerHTML = ""; }
@@ -1061,14 +1120,15 @@ function svgCorona(tipo){
 }
 function renderScoreboard(){
   const cor = coronas();
+  const act = equipoActivo(), rem = !!infoRemontada();
   const sb = $("scoreboard"); sb.innerHTML = "";
   teams.forEach((t, i) => {
     const el = document.createElement("div");
-    el.className = "team" + (i === turn ? " turno" : "");
+    el.className = "team" + (i === act ? " turno" : "");
     el.style.setProperty("--tc", t.color);
-    el.title = i === turn ? "Le toca a este equipo" : "Toca para darle el turno a este equipo";
+    el.title = i === act ? "Le toca a este equipo" : "Toca para darle el turno a este equipo";
     el.onclick = () => darTurno(i);
-    el.innerHTML = `${i === turn ? '<span class="letoca">Le toca</span>' : ""}
+    el.innerHTML = `${i === act ? `<span class="letoca">${rem ? "⚡ Remontada" : "Le toca"}</span>` : ""}
       <span class="dot" style="background:${t.color}"></span>
       <div class="nm">${cor[i] ? svgCorona(cor[i]) : ""}<span>${escapeHtml(t.name)}</span></div>
       <span class="sc">${t.score}</span>
@@ -1092,7 +1152,16 @@ function renderTurnbar(){
       <button class="btn btn-gold btn-big" onclick="showResults()">Ver resultados</button>`;
     return;
   }
-  const ro = ronda();
+  const ro = ronda(), rem = infoRemontada();
+  if(rem){
+    const r = teams[rem.equipo];
+    tb.style.setProperty("--tc", r.color);
+    tb.innerHTML = `<div><span class="tb-info">⚡ Remontada · ronda ${ro.n} de ${ro.de}</span>
+        <span class="tb-le">Juega <b>${escapeHtml(r.name)}</b>, que va en último lugar</span>
+        <span class="tb-rem">Su pregunta de ${rem.casilla} vale <b>${rem.valor}</b> si acierta: la mitad de lo que le falta para alcanzar al primero. El primer lugar no puede robarla.</span></div>
+      <button class="btn btn-gold btn-big" onclick="girar()">Girar la ruleta</button>`;
+    return;
+  }
   tb.innerHTML = `<div><span class="tb-info">Ronda ${ro.n} de ${ro.de} · pregunta ${Math.min(usadas() + 1, totalPreguntas())} de ${totalPreguntas()}</span>
       <span class="tb-le">Le toca a <b>${escapeHtml(t.name)}</b></span>
       <span class="tb-bolsa">Le quedan: ${chipsBolsa(turn)}</span></div>
@@ -1178,14 +1247,16 @@ function svgRuleta(disp){
 let giroAng = 0, ruletaGen = 0;
 function girar(){
   if(P || $("ruletaRoot").innerHTML.trim() || bloqueado()) return;
-  ajustarTurno();
+  const rem = infoRemontada();
+  if(!rem) ajustarTurno();
   if(juegoTerminado()){ showResults(); return; }
-  const el = elegirCasilla();
+  const eq = rem ? rem.equipo : turn;
+  const el = elegirCasilla(eq, !!rem);
   if(!el){ showResults(); return; }
   despertarAudio(); voz.callar();
   const gen = ++ruletaGen;
   const disp = el.temas;
-  const t = teams[turn], ro = ronda();
+  const t = teams[eq], ro = ronda();
   const C = CATEGORIES.length, SEG = 360 / C;
   $("ruletaRoot").innerHTML = `
     <div class="overlay" style="--tc:${t.color}">
@@ -1195,9 +1266,9 @@ function girar(){
           <div class="ruleta-puntero"></div>
         </div>
         <div class="ruleta-lado">
-          <div class="quien">Ruleta de <b>${escapeHtml(t.name)}</b></div>
-          <div class="nr">Ronda ${ro.n} de ${ro.de}</div>
-          <div class="tb-bolsa">Le quedan: ${chipsBolsa(turn)}</div>
+          <div class="quien">${rem ? "⚡ Remontada de" : "Ruleta de"} <b>${escapeHtml(t.name)}</b></div>
+          <div class="nr">${rem ? `Su pregunta de ${rem.casilla} vale ${rem.valor} si acierta` : `Ronda ${ro.n} de ${ro.de}`}</div>
+          <div class="tb-bolsa">Le quedan: ${chipsBolsa(eq)}</div>
           <div class="ruleta-res" id="ruletaRes"><div class="girando">Girando…</div></div>
           <div class="ruleta-acts" id="ruletaActs"><button class="btn btn-ghost" onclick="cancelarRuleta()">Cancelar</button></div>
         </div>
@@ -1246,12 +1317,17 @@ function aterrizar(el, gen){
   const temaHtml = `<div class="tema"><i style="background:${colorTema(el.c)}"></i><span>${escapeHtml(cat.name)}</span></div>`;
   const final = () => {
     if(gen !== ruletaGen || !$("ruletaRes")) return;
-    res.innerHTML = temaHtml + `<div class="valor">${it.pts} <small>puntos</small></div><div class="abriendo">Abriendo la pregunta…</div>`;
+    const rem = infoRemontada();
+    const vale = rem ? Math.max(it.pts, rem.mitad) : it.pts;
+    res.innerHTML = temaHtml + `<div class="valor">${vale} <small>puntos</small></div>`
+      + (rem && vale > it.pts ? `<div class="abriendo">⚡ Remontada: la casilla es de ${it.pts}</div>` : "")
+      + `<div class="abriendo">Abriendo la pregunta…</div>`;
     SON.ding();
     // Sin botón de "abrir": la pregunta se abre sola, y así ningún clic cae sobre una opción.
     const nombre = cat.name.trim();
     const espera = vozActiva() ? 600 : 1800;
-    voz.decir([`${nombre}${/[.?!]$/.test(nombre) ? "" : "."} Por ${it.pts} puntos.`], () => {
+    const dicho = `${nombre}${/[.?!]$/.test(nombre) ? "" : "."} ` + (rem ? `Si aciertan, valen ${vale} puntos.` : `Por ${it.pts} puntos.`);
+    voz.decir([dicho], () => {
       setTimeout(() => abrirDesdeRuleta(el.c, el.r, gen), espera);
     });
   };
@@ -1332,8 +1408,12 @@ function pausarReloj(){
 function openQuestion(c, r){
   if(P) return;
   despertarAudio();
-  const cat = CATEGORIES[c], it = cat.items[r], t = teams[turn];
-  P = {c, r, fase:"lectura", tachada:-1, robaron:new Set(), dio:0, agotado:false, desde:performance.now()};
+  const cat = CATEGORIES[c], it = cat.items[r];
+  // Si hay remontada pendiente, esta pregunta es la suya (también si se abrió a mano desde el tablero).
+  const rem = infoRemontada();
+  const eq = rem ? rem.equipo : turn, t = teams[eq];
+  const valor = rem ? Math.max(it.pts, rem.mitad) : it.pts;
+  P = {c, r, equipo:eq, remontada:!!rem, valor, fase:"lectura", tachada:-1, robaron:new Set(), dio:0, agotado:false, desde:performance.now()};
   const optsHtml = it.opts.map((o, k) =>
     `<button class="opt" id="opt-${k}" onclick="tocarLetra(${k})"><span class="lt">${LETTERS[k]}</span><span class="tx">${escapeHtml(o)}</span></button>`).join("");
   $("modalRoot").innerHTML = `
@@ -1341,7 +1421,8 @@ function openQuestion(c, r){
       <div class="modal" style="--tc:${t.color}">
         <div class="meta">
           <span class="m-tema">${escapeHtml(cat.name)}</span>
-          <span class="m-pts">${it.pts} pts</span>
+          ${rem ? '<span class="m-rem">⚡ Remontada</span>' : ""}
+          <span class="m-pts">${valor} pts${valor !== it.pts ? ` <small>(casilla de ${it.pts})</small>` : ""}</span>
           <span class="m-turno"><span class="dot"></span>Turno de ${escapeHtml(t.name)}</span>
           <button class="m-cerrar" id="mCerrar" title="Cerrar sin calificar" onclick="cerrarPregunta()">✕</button>
         </div>
@@ -1396,15 +1477,15 @@ function mostrarPorQue(){ const it = CATEGORIES[P.c].items[P.r]; $("explBox").in
 function tocarLetra(k){
   // En el primer segundo nadie ha contestado: un clic ahí es de la capa anterior.
   if(!P || (P.fase !== "lectura" && P.fase !== "turno") || k === P.tachada || hace(1200)) return;
-  const it = CATEGORIES[P.c].items[P.r], t = teams[turn];
+  const it = CATEGORIES[P.c].items[P.r], t = teams[P.equipo];
   voz.callar(); congelarReloj();
   if(k === it.correct){
-    P.fase = "acierto"; P.dio = it.pts; P.desde = performance.now();
-    t.score += it.pts; guardar(); renderScoreboard();
+    P.fase = "acierto"; P.dio = P.valor; P.desde = performance.now();
+    t.score += P.valor; guardar(); renderScoreboard();
     marcarCorrecta(); mostrarPorQue();
-    $("aviso").innerHTML = `<div class="aviso bien">¡Correcto! ${escapeHtml(t.name)} suma ${it.pts} puntos.</div>`;
+    $("aviso").innerHTML = `<div class="aviso bien">¡Correcto! ${escapeHtml(t.name)} suma ${P.valor} puntos.</div>`;
     SON.bien();
-    voz.decir([`¡Correcto! ${t.name} suma ${it.pts} puntos.`], null);
+    voz.decir([`¡Correcto! ${t.name} suma ${P.valor} puntos.`], null);
     pintarAcciones();
   } else {
     P.tachada = k;
@@ -1419,9 +1500,12 @@ function noContesto(){
   faseRobo("Se acabó el tiempo.");
 }
 function faseRobo(intro){
+  // Si nadie puede robar (dos equipos y es la remontada del último), se revela y ya.
+  if(!robadores().length){ revelarSinRobo(intro); return; }
   P.fase = "robo"; P.desde = performance.now();
   opcionesActivas(false);
-  $("aviso").innerHTML = `<div class="aviso robo">¡Robo! Los demás equipos escriben su letra en la hoja. Cuando el reloj llegue a cero, todos la levantan a la vez.</div>`;
+  const sinPrimero = P.remontada ? " El primer lugar no participa: es la remontada." : "";
+  $("aviso").innerHTML = `<div class="aviso robo">¡Robo! Los demás equipos escriben su letra en la hoja. Cuando el reloj llegue a cero, todos la levantan a la vez.${sinPrimero}</div>`;
   pintarAcciones();
   const arrancar = () => {
     if(!P || P.fase !== "robo") return;
@@ -1430,8 +1514,17 @@ function faseRobo(intro){
   if(vozActiva()){
     R.quedan = T_ROBO; R.total = T_ROBO;
     ponerReloj(T_ROBO, T_ROBO, "espera", "Robo: el tiempo empieza al terminar la voz");
-    voz.decir([`${intro} ¡Robo! Los demás equipos, escriban su letra.`], arrancar);
+    voz.decir([`${intro} ¡Robo! Los demás equipos${P.remontada ? ", menos el primer lugar," : ""} escriban su letra.`], arrancar);
   } else arrancar();
+}
+function revelarSinRobo(intro){
+  detenerReloj();
+  P.fase = "revelada"; P.desde = performance.now();
+  const it = CATEGORIES[P.c].items[P.r];
+  marcarCorrecta(); mostrarPorQue();
+  $("aviso").innerHTML = `<div class="aviso robo">${escapeHtml(intro)} Nadie puede robarla: los demás equipos van en primer lugar.</div>`;
+  voz.decir([`${intro} La respuesta correcta es la opción ${LETTERS[it.correct]}: ${it.opts[it.correct]}`], null);
+  pintarAcciones();
 }
 function faseArriba(){
   if(!P || P.fase !== "robo" || hace(700)) return;
@@ -1461,16 +1554,16 @@ function alternarRobo(i){
 }
 function confirmarRobo(){
   if(!P || P.fase !== "revelada" || hace(500)) return;
-  const m = mitad(CATEGORIES[P.c].items[P.r].pts), lista = [...P.robaron];
+  const m = mitad(P.valor), lista = [...P.robaron];
   lista.forEach(i => teams[i].score += m);
-  terminarPregunta({turno:turn, acerto:false, robaron:lista});
+  terminarPregunta({turno:P.equipo, acerto:false, robaron:lista});
 }
-function continuar(){ if(!P || P.fase !== "acierto" || hace(500)) return; terminarPregunta({turno:turn, acerto:true, robaron:[]}); }
+function continuar(){ if(!P || P.fase !== "acierto" || hace(500)) return; terminarPregunta({turno:P.equipo, acerto:true, robaron:[]}); }
 function deshacer(){
   if(!P || !["acierto","robo","arriba"].includes(P.fase)) return;
   voz.callar(); detenerReloj();
   const it = CATEGORIES[P.c].items[P.r];
-  if(P.fase === "acierto" && P.dio){ teams[turn].score -= P.dio; P.dio = 0; guardar(); renderScoreboard(); }
+  if(P.fase === "acierto" && P.dio){ teams[P.equipo].score -= P.dio; P.dio = 0; guardar(); renderScoreboard(); }
   if(P.tachada >= 0){ const o = $("opt-" + P.tachada); if(o) o.classList.remove("tachada"); P.tachada = -1; }
   const oc = $("opt-" + it.correct); if(oc) oc.classList.remove("correct");
   $("explBox").innerHTML = ""; $("aviso").innerHTML = "";
@@ -1482,12 +1575,28 @@ function deshacer(){
 function terminarPregunta(reg){
   voz.callar(); detenerReloj();
   used[key(P.c, P.r)] = reg;
+  const fueRemontada = P.remontada, eq = P.equipo;
   P = null;
   $("modalRoot").innerHTML = "";
   bloquear();
-  turn = (turn + 1) % teams.length;
+  let anuncio = false;
+  if(fueRemontada){
+    // La remontada se juega fuera de la rotación: el turno sigue donde iba,
+    // salvo que le tocara justo a ese equipo (entonces ya usó su turno).
+    remontada.pendientes = remontada.pendientes.filter(i => i !== eq);
+    remontada.jugaron.push(eq);
+    if(eq === turn) turn = (turn + 1) % teams.length;
+  } else {
+    turn = (turn + 1) % teams.length;
+    anuncio = revisarRemontada();
+  }
   guardar(); renderAll();
-  if(juegoTerminado()) setTimeout(showResults, 350);
+  if(juegoTerminado()){ setTimeout(showResults, 350); return; }
+  if(anuncio){
+    const nombres = remontada.pendientes.map(i => teams[i].name).join(" y ");
+    SON.arriba();
+    voz.decir([`¡Remontada! ${nombres} va en último lugar y juega ahora una pregunta que vale más.`], null);
+  }
 }
 function cerrarPregunta(){
   if(!P || (P.fase !== "lectura" && P.fase !== "turno")) return;
@@ -1498,7 +1607,7 @@ function cerrarPregunta(){
 }
 function pintarAcciones(){
   if(!P) return;
-  const a = $("actions"), it = CATEGORIES[P.c].items[P.r], t = teams[turn];
+  const a = $("actions"), t = teams[P.equipo];
   const x = $("mCerrar"); if(x) x.classList.toggle("hide", !(P.fase === "lectura" || P.fase === "turno"));
   // Ya resuelta la pregunta, el reloj sobra: se esconde para que quepan los botones.
   const resuelta = P.fase === "acierto" || P.fase === "revelada";
@@ -1519,9 +1628,11 @@ function pintarAcciones(){
     h = `<button class="btn btn-dark btn-big" onclick="revelar()">Revelar la respuesta</button>
       <button class="btn btn-line" onclick="deshacer()">↩ Me equivoqué de letra</button>`;
   } else if(P.fase === "revelada"){
-    const m = mitad(it.pts), n = P.robaron.size;
-    const otros = teams.map((e, i) => ({e, i})).filter(o => o.i !== turn);
-    h = `<div class="award-label">¿Qué equipos tenían la letra correcta en la hoja? Cada uno suma ${m}.</div>
+    const m = mitad(P.valor), n = P.robaron.size;
+    const otros = robadores().map(i => ({e:teams[i], i}));
+    h = !otros.length
+      ? `<div class="award"><button class="confirmar" onclick="confirmarRobo()">Continuar ▸</button></div>`
+      : `<div class="award-label">¿Qué equipos tenían la letra correcta en la hoja? Cada uno suma ${m}.${P.remontada ? " El primer lugar no puede robar la remontada." : ""}</div>
       <div class="award">${otros.map(o => `<button class="${P.robaron.has(o.i) ? "on" : ""}" style="--c:${o.e.color}" onclick="alternarRobo(${o.i})">${escapeHtml(o.e.name)}</button>`).join("")}
       <button class="confirmar" onclick="confirmarRobo()">${n ? `Dar ${m} a ${n === 1 ? "1 equipo" : n + " equipos"} ▸` : "Nadie la tenía ▸"}</button></div>`;
   }
@@ -1565,6 +1676,7 @@ function showResults(){
 /* ---------- Inicio ---------- */
 document.querySelectorAll(".nTurno").forEach(e => e.textContent = T_TURNO);
 document.querySelectorAll(".nRobo").forEach(e => e.textContent = T_ROBO);
+document.querySelectorAll(".nRezago").forEach(e => e.textContent = REZAGO_MIN);
 if("speechSynthesis" in window){
   voz.cargar();
   try{ speechSynthesis.addEventListener("voiceschanged", () => voz.cargar()); }
