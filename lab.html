@@ -1,0 +1,1560 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trivia de repaso del semestre · Laboratorio de Investigación</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+  :root{
+    --navy:#0e2740; --navy2:#143655; --navy3:#1c4a73;
+    --teal:#2a9d8f; --teal-d:#1f7a72;
+    --gold:#e0b13a; --gold-d:#c2962a;
+    --cream:#f6efe0; --cream-dim:#d9d0bd;
+    --green:#3fb27a; --red:#d9695f;
+    --shadow:0 10px 30px rgba(0,0,0,.35);
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none !important}
+  html,body{margin:0}
+  body{
+    font-family:"Trebuchet MS","Segoe UI",Verdana,sans-serif;
+    color:var(--cream);
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(42,157,143,.18), transparent 60%),
+      radial-gradient(900px 500px at 0% 110%, rgba(224,177,58,.14), transparent 55%),
+      linear-gradient(160deg,var(--navy) 0%, var(--navy2) 100%);
+    background-attachment:fixed;
+    min-height:100vh;
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding-block:22px 60px;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px))}
+  h1,h2,h3,.serif{font-family:Georgia,"Times New Roman",serif}
+  .hide{display:none !important}
+
+  /* ---------- Encabezado y botones ---------- */
+  header.top{display:flex;align-items:flex-end;justify-content:space-between;
+    gap:16px;flex-wrap:wrap;border-bottom:2px solid rgba(224,177,58,.4);
+    padding-bottom:14px;margin-bottom:16px}
+  header.top h1{margin:0;font-size:clamp(22px,3.2vw,34px);color:var(--cream);letter-spacing:.3px}
+  .sub{color:var(--gold);font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-family:Georgia,serif}
+  .topbtns{display:flex;gap:8px;flex-wrap:wrap}
+
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;
+    transition:transform .12s ease, filter .12s ease, background .15s}
+  button:active{transform:translateY(1px)}
+  button:disabled{cursor:default}
+  .btn{padding:10px 16px;font-weight:700;font-size:14px}
+  .btn-big{padding:14px 24px;font-size:18px}
+  .btn-gold{background:var(--gold);color:#241a00}
+  .btn-gold:hover{filter:brightness(1.07)}
+  .btn-teal{background:var(--teal);color:#04201d}
+  .btn-teal:hover{filter:brightness(1.08)}
+  .btn-ghost{background:rgba(255,255,255,.08);color:var(--cream);border:1px solid rgba(255,255,255,.22)}
+  .btn-ghost:hover{background:rgba(255,255,255,.16)}
+  .btn-ghost:disabled{opacity:.5}
+  .btn-dark{background:#1c3550;color:#fff}
+  .btn-dark:hover{filter:brightness(1.15)}
+  .btn-line{background:transparent;color:#1c3550;border:2px solid #1c3550}
+  .btn-line:hover{background:rgba(28,53,80,.08)}
+  .btn-warn{background:#c0392b;color:#fff}
+  .pulso{animation:pulso 1s ease-in-out infinite}
+  @keyframes pulso{50%{transform:scale(1.04);filter:brightness(1.12)}}
+
+  /* ---------- Pantalla de inicio ---------- */
+  .setup{max-width:720px;margin:4vh auto 0;background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.12);border-radius:18px;padding:30px;box-shadow:var(--shadow)}
+  .setup h2{margin:0 0 6px;font-size:26px}
+  .setup p.lead{margin:0 0 18px;color:var(--cream-dim);line-height:1.5}
+  .setup .lbl{display:block;font-weight:700;margin:22px 0 10px;font-size:14px;
+    letter-spacing:.5px;text-transform:uppercase;color:var(--gold)}
+  .countrow{display:flex;gap:8px;flex-wrap:wrap}
+  .countrow button{flex:1;min-width:48px;padding:12px 0;background:rgba(255,255,255,.07);
+    color:var(--cream);border:1px solid rgba(255,255,255,.18);font-weight:700;font-size:18px}
+  .countrow button.on{background:var(--teal);color:#04201d;border-color:var(--teal)}
+  .names{display:grid;gap:8px;margin-top:6px}
+  .nrow{display:flex;gap:10px;align-items:center}
+  .nrow .dot{width:16px;height:16px;border-radius:50%;flex:0 0 auto}
+  .names input{flex:1;padding:11px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.2);
+    background:rgba(0,0,0,.2);color:var(--cream);font-size:15px;font-family:inherit}
+  .names input:focus{outline:2px solid var(--gold);outline-offset:1px}
+  .choice{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .choice button{padding:12px 14px;text-align:left;background:rgba(255,255,255,.07);color:var(--cream);
+    border:1px solid rgba(255,255,255,.18);font-weight:700;font-size:15px;line-height:1.25}
+  .choice button small{display:block;font-weight:400;font-size:13px;color:var(--cream-dim);margin-top:5px;line-height:1.4}
+  .choice button.on{background:rgba(42,157,143,.22);border-color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal)}
+  .choice button.on::before{content:"✓ ";color:#6fd6c8}
+  .vozbox{display:grid;gap:10px;background:rgba(0,0,0,.15);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px}
+  .fila{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .fila .et{font-size:14px;min-width:140px;color:var(--cream)}
+  .seg{display:inline-flex;border:1px solid rgba(255,255,255,.22);border-radius:9px;overflow:hidden}
+  .seg button{background:transparent;color:var(--cream);padding:7px 16px;border-radius:0;font-weight:700;font-size:14px}
+  .seg button.on{background:var(--teal);color:#04201d}
+  select{padding:8px 10px;border-radius:9px;border:1px solid rgba(255,255,255,.22);background:#0b2034;
+    color:var(--cream);font-family:inherit;font-size:14px;max-width:100%}
+  .nota{font-size:13px;color:var(--cream-dim);line-height:1.45;margin:0}
+  .pendiente{background:rgba(224,177,58,.12);border:1px solid rgba(224,177,58,.45);border-radius:12px;padding:12px 14px;margin-bottom:4px}
+  .pendiente p{margin:0 0 10px;line-height:1.45;font-size:14px}
+  .setup .go{margin-top:26px;width:100%;padding:15px;font-size:17px}
+
+  /* ---------- Marcador ---------- */
+  .scoreboard{display:flex;gap:18px 10px;flex-wrap:wrap;margin-bottom:14px;padding-top:12px}
+  .team{position:relative;background:rgba(255,255,255,.06);border:2px solid rgba(255,255,255,.14);
+    border-radius:12px;padding:9px 12px;display:flex;align-items:center;gap:10px;
+    min-width:150px;flex:1;cursor:pointer;transition:box-shadow .25s,border-color .25s,background .25s}
+  .team:hover{background:rgba(255,255,255,.09)}
+  .team.turno{border:3px solid var(--tc);background:rgba(255,255,255,.11);
+    box-shadow:0 0 0 3px color-mix(in srgb, var(--tc) 30%, transparent), 0 0 26px color-mix(in srgb, var(--tc) 55%, transparent);
+    animation:brillo 1.4s ease-in-out infinite alternate}
+  @keyframes brillo{to{box-shadow:0 0 0 5px color-mix(in srgb, var(--tc) 22%, transparent), 0 0 34px color-mix(in srgb, var(--tc) 75%, transparent)}}
+  .team .letoca{position:absolute;top:-12px;left:12px;background:var(--tc);color:#0b1a28;font-size:11px;font-weight:800;
+    letter-spacing:1px;text-transform:uppercase;padding:2px 9px;border-radius:999px;white-space:nowrap}
+  .team .dot{width:14px;height:14px;border-radius:50%;flex:0 0 auto}
+  .team .nm{font-weight:700;font-size:15px;line-height:1.15;display:flex;align-items:center;gap:6px}
+  .team .sc{font-family:Georgia,serif;font-size:24px;font-weight:700;color:var(--gold);margin-left:auto}
+  .team .adj{display:flex;flex-direction:column;gap:2px}
+  .team .adj button{width:24px;height:19px;font-size:12px;line-height:1;padding:0;background:rgba(255,255,255,.1);color:var(--cream)}
+  .team .adj button:hover{background:rgba(255,255,255,.22)}
+  .corona{width:28px;height:24px;flex:0 0 auto;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55))}
+
+  /* ---------- Barra del turno ---------- */
+  .turnbar{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);border-left:8px solid var(--tc);
+    border-radius:12px;padding:12px 16px;margin-bottom:16px}
+  .tb-info{display:block;color:var(--gold);font-size:13px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:3px}
+  .tb-le{font-size:clamp(20px,2.4vw,28px);font-family:Georgia,serif}
+  .tb-le b{color:var(--tc)}
+
+  /* ---------- Tablero ---------- */
+  .board{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
+  .cat{display:flex;flex-direction:column;gap:10px}
+  .cat-h{position:relative;overflow:hidden;background:linear-gradient(180deg,var(--navy3),var(--navy2));
+    border:1px solid rgba(224,177,58,.35);border-radius:10px;padding:14px 8px 12px;
+    text-align:center;min-height:78px;display:flex;align-items:center;justify-content:center}
+  .cat-h::before{content:"";position:absolute;left:0;right:0;top:0;height:6px;background:var(--tema)}
+  .cat-h span{font-family:Georgia,serif;font-size:13px;font-weight:700;line-height:1.25}
+  .tiles{display:flex;flex-direction:column;gap:10px}
+  .tile{position:relative;background:linear-gradient(180deg,var(--teal),var(--teal-d));
+    color:#03211e;border-radius:10px;padding:16px 8px;font-family:Georgia,serif;
+    font-size:clamp(20px,2.4vw,30px);line-height:1.2;font-weight:700;text-align:center;
+    border:1px solid transparent;box-shadow:0 4px 0 rgba(0,0,0,.25)}
+  .tile:hover{filter:brightness(1.08)}
+  .tile.ronda{box-shadow:0 0 0 3px var(--gold),0 4px 0 rgba(0,0,0,.25)}
+  .tile.pasada{opacity:.38}
+  .tile.used{background:rgba(255,255,255,.04);color:rgba(255,255,255,.3);
+    box-shadow:none;cursor:default;border:1px dashed rgba(255,255,255,.14)}
+  .tile.used:hover{filter:none}
+  .tile .quien{position:absolute;left:0;right:0;bottom:5px;display:flex;gap:4px;justify-content:center}
+  .tile .quien i{width:10px;height:10px;border-radius:50%;display:inline-block}
+
+  /* ---------- Capas ---------- */
+  .overlay{position:fixed;inset:0;background:rgba(6,16,28,.86);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;padding:18px;z-index:50;
+    animation:fade .2s ease}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+
+  /* ---------- Ruleta ---------- */
+  .ruleta-box{width:min(1180px,100%);display:flex;gap:34px;align-items:center;justify-content:center;flex-wrap:wrap}
+  .ruleta-wrap{position:relative;width:min(68vh,84vw);aspect-ratio:1/1;flex:0 0 auto}
+  .ruleta-giro{width:100%;height:100%;border-radius:50%;will-change:transform}
+  .ruleta-giro svg{width:100%;height:100%;display:block;overflow:visible}
+  .ruleta-puntero{position:absolute;right:-22px;top:50%;width:0;height:0;transform:translateY(-50%);
+    border-top:22px solid transparent;border-bottom:22px solid transparent;border-right:44px solid var(--gold);
+    filter:drop-shadow(0 2px 5px rgba(0,0,0,.6))}
+  .ruleta-lado{flex:1 1 300px;max-width:430px}
+  .ruleta-lado .quien{font-size:15px;color:var(--cream-dim);text-transform:uppercase;letter-spacing:1.5px;font-weight:700}
+  .ruleta-lado .quien b{color:var(--tc)}
+  .ruleta-lado .nr{color:var(--gold);font-size:15px;margin-top:6px}
+  .ruleta-res{min-height:170px;margin:18px 0}
+  .ruleta-res .girando{font-family:Georgia,serif;font-size:28px;color:var(--cream-dim)}
+  .ruleta-res .tema{font-family:Georgia,serif;font-size:clamp(26px,3.1vw,40px);line-height:1.15;font-weight:700;display:flex;gap:12px;align-items:flex-start}
+  .ruleta-res .tema i{width:18px;height:18px;border-radius:5px;flex:0 0 auto;margin-top:.35em}
+  .ruleta-res .valor{font-family:Georgia,serif;font-size:clamp(44px,5.4vw,70px);color:var(--gold);font-weight:700;margin-top:8px}
+  .ruleta-res .valor small{font-size:.38em;color:var(--cream-dim);font-weight:400}
+  .ruleta-acts{display:flex;gap:10px;flex-wrap:wrap}
+  .ruleta-res .abriendo{color:var(--cream-dim);font-size:15px;margin-top:10px}
+  .seg-gana{animation:latir .6s ease-in-out infinite alternate}
+  @keyframes latir{from{opacity:1}to{opacity:.3}}
+
+  /* ---------- Pregunta ---------- */
+  .modal{width:min(1020px,100%);max-height:95vh;overflow:auto;background:linear-gradient(160deg,#fbf6ea,#f0e7d2);
+    color:#1a2433;border-radius:18px;box-shadow:var(--shadow);padding:20px 28px 24px;border-top:10px solid var(--tc,var(--teal))}
+  .modal .meta{display:flex;gap:16px;align-items:center;font-size:13px;text-transform:uppercase;letter-spacing:1.5px;
+    color:var(--teal-d);font-weight:700;border-bottom:2px solid rgba(42,157,143,.3);padding-bottom:10px}
+  .modal .meta .m-tema{flex:1}
+  .modal .meta .m-pts{color:var(--gold-d)}
+  .m-turno{display:flex;align-items:center;gap:7px;color:#1a2433;text-transform:none;letter-spacing:0;font-size:16px}
+  .m-turno .dot{width:15px;height:15px;border-radius:50%;background:var(--tc)}
+  .m-cerrar{background:transparent;color:#6b7684;font-size:22px;padding:0 4px;line-height:1}
+  .m-cerrar:hover{color:#1a2433}
+  .reloj-row{display:flex;align-items:center;gap:16px;margin-top:12px}
+  .reloj{display:flex;align-items:center;gap:12px;min-width:200px;cursor:pointer;user-select:none}
+  .reloj .r-num{font-family:Georgia,serif;font-size:56px;font-weight:700;line-height:1;color:#10202f;
+    font-variant-numeric:tabular-nums;min-width:1.25em;text-align:right}
+  .reloj .r-lbl{font-size:14px;color:#4a5866;font-weight:700;max-width:230px;line-height:1.3}
+  .reloj.espera .r-num, .reloj.pausa .r-num{color:#a3acb5}
+  .reloj.urge .r-num{color:#c0392b}
+  .reloj.cero .r-num{color:#c0392b;animation:parpadeo .6s steps(2,start) infinite}
+  @keyframes parpadeo{to{visibility:hidden}}
+  .barra{flex:1;height:12px;background:rgba(0,0,0,.08);border-radius:999px;overflow:hidden}
+  .barra > div{height:100%;width:100%;background:var(--teal);border-radius:999px;transition:width .12s linear}
+  .barra.urge > div{background:#c0392b}
+  .q{font-family:Georgia,serif;font-size:clamp(21px,2.5vw,30px);line-height:1.4;margin:14px 0 18px;color:#10202f}
+  .opts{display:grid;gap:10px}
+  .opt{display:flex;gap:14px;align-items:flex-start;background:#fff;text-align:left;width:100%;
+    border:2px solid #e3d8bf;border-radius:11px;padding:13px 16px;font-size:clamp(17px,1.75vw,21px);
+    line-height:1.4;color:#22303f}
+  .opt:not(:disabled):hover{border-color:var(--tc,var(--teal));background:#fffdf6}
+  .opt .lt{font-family:Georgia,serif;font-weight:700;color:var(--teal-d);flex:0 0 auto;font-size:1.1em}
+  .opt.correct{background:#e7f6ee;border-color:var(--green)}
+  .opt.correct .lt{color:#1f8a59}
+  .opt.correct::after{content:"✓";margin-left:auto;color:var(--green);font-weight:900;font-size:24px}
+  .opt.tachada{background:#fbeaea;border-color:#d9695f;color:#8b5b5b}
+  .opt.tachada .tx{text-decoration:line-through;text-decoration-thickness:2px}
+  .opt.tachada .lt{color:#c0392b}
+  .opt.tachada::after{content:"✗";margin-left:auto;color:#c0392b;font-weight:900;font-size:24px}
+  .aviso{margin-top:14px;border-radius:12px;padding:12px 16px;font-weight:700;font-size:clamp(17px,1.9vw,22px);line-height:1.35}
+  .aviso.bien{background:#e7f6ee;color:#1d6b46;border:2px solid var(--green)}
+  .aviso.robo{background:#fff4e0;color:#7a4f00;border:2px solid var(--gold)}
+  .aviso.arriba{background:#10202f;color:var(--gold);border:2px solid var(--gold);font-size:clamp(30px,3.6vw,46px);
+    text-align:center;letter-spacing:2px;animation:pop .35s ease}
+  @keyframes pop{from{transform:scale(.85);opacity:.2}to{transform:none;opacity:1}}
+  .expl{margin-top:14px;background:rgba(42,157,143,.1);border-left:4px solid var(--teal);
+    border-radius:0 10px 10px 0;padding:13px 16px;font-size:16px;line-height:1.5;color:#1c3b39}
+  .expl b{color:var(--teal-d)}
+  .modal .actions{margin-top:18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+  .pista{width:100%;margin:0 0 2px;font-size:15px;color:#4a5866}
+  .award-label{width:100%;font-weight:700;font-size:16px;color:#2c3846}
+  .award{display:flex;flex-wrap:wrap;gap:8px;width:100%;margin-bottom:4px}
+  .award button{padding:10px 16px;font-weight:700;font-size:16px;background:#fff;color:#10202f;border:3px solid var(--c)}
+  .award button.on{background:var(--c)}
+  .award button.on::before{content:"✓ "}
+  .award button.confirmar{margin-left:auto;background:#1c3550;color:#fff;border:none;padding:14px 24px;font-size:18px}
+
+  /* ---------- Resultados ---------- */
+  .modal.results{background:linear-gradient(160deg,#143655,#0e2740);color:var(--cream);border:1px solid rgba(224,177,58,.4);
+    border-top:10px solid var(--gold);text-align:center;width:min(720px,100%)}
+  .results h2{font-size:32px;margin:6px 0 4px;color:var(--cream)}
+  .results .gana{color:var(--gold);font-size:20px;margin:0}
+  .results .grande .corona{width:70px;height:60px}
+  .rank{list-style:none;padding:0;margin:18px 0;display:grid;gap:8px}
+  .rank li{display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:11px 16px;color:var(--cream);text-align:left}
+  .rank li .pos{font-family:Georgia,serif;font-size:20px;color:var(--gold);width:34px}
+  .rank li .dot{width:14px;height:14px;border-radius:50%;flex:0 0 auto}
+  .rank li .nm{font-weight:700;font-size:17px}
+  .rank li .pts{margin-left:auto;font-family:Georgia,serif;font-size:22px;font-weight:700}
+  .rank li.first{outline:2px solid var(--gold)}
+  .corona-vacia{width:28px;flex:0 0 auto}
+  .centro{justify-content:center}
+
+  .footnote{margin-top:22px;color:var(--cream-dim);font-size:12.5px;text-align:center;line-height:1.6}
+
+  @media(max-width:760px){
+    .board{grid-template-columns:1fr;gap:14px}
+    .cat{border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:10px}
+    .cat-h{min-height:auto}
+    .cat .tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
+    .tile{padding:14px 4px;font-size:18px}
+    .choice{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- INICIO -->
+  <section id="setup" class="setup">
+    <div class="sub">Laboratorio de Investigación</div>
+    <h2>Trivia de repaso del semestre</h2>
+    <p class="lead">Concurso por equipos sobre todo el semestre: del enfoque cualitativo a la ética, pasando por la pregunta, el objetivo, la hipótesis y la entrevista. Casi todas las preguntas son de alumnos de primero. Elige cuántos equipos jugarán y dales un nombre.</p>
+    <div id="pendiente" class="pendiente hide"></div>
+
+    <span class="lbl">¿Cuántos equipos?</span>
+    <div class="countrow" id="countRow"></div>
+
+    <span class="lbl">Nombres de los equipos</span>
+    <div class="names" id="names"></div>
+
+    <span class="lbl">¿Cómo se elige la pregunta?</span>
+    <div class="choice" id="modoRow">
+      <button data-modo="rondas" onclick="elegirModo('rondas')">Ruleta por rondas<small>La ruleta elige el tema. El valor sube por rondas: todos juegan una de 100, luego una de 200, y así hasta 500.</small></button>
+      <button data-modo="azar" onclick="elegirModo('azar')">Ruleta, todo al azar<small>La ruleta elige el tema y el valor de cada pregunta.</small></button>
+    </div>
+
+    <span class="lbl">Voz y sonido</span>
+    <div class="vozbox">
+      <div class="fila"><span class="et">Leer en voz alta</span>
+        <span class="seg"><button id="vozSi" onclick="ponerVoz(true)">Sí</button><button id="vozNo" onclick="ponerVoz(false)">No</button></span></div>
+      <div class="fila" id="filaVoz"><span class="et">Voz</span>
+        <select id="vozSel" onchange="ajustes.vozNombre=this.value;guardarAjustes()"></select>
+        <select id="velSel" onchange="ajustes.velocidad=+this.value;guardarAjustes()">
+          <option value="0.9">Pausada</option><option value="1">Normal</option><option value="1.1">Un poco rápida</option><option value="1.2">Rápida</option>
+        </select>
+        <button class="btn btn-ghost" onclick="probarVoz()">Probar</button></div>
+      <p class="nota" id="vozNota"></p>
+      <div class="fila"><span class="et">Efectos de sonido</span>
+        <span class="seg"><button id="sonSi" onclick="ponerSonidos(true)">Sí</button><button id="sonNo" onclick="ponerSonidos(false)">No</button></span></div>
+    </div>
+
+    <button class="btn btn-gold go" onclick="startGame()">Comenzar el juego ▸</button>
+  </section>
+
+  <!-- JUEGO -->
+  <section id="game" class="hide">
+    <header class="top">
+      <div>
+        <div class="sub">Laboratorio de Investigación · semestre</div>
+        <h1>Tablero de repaso</h1>
+      </div>
+      <div class="topbtns">
+        <button class="btn btn-ghost" id="vozBtn" onclick="alternarVoz()">Voz</button>
+        <button class="btn btn-gold" onclick="showResults()">Terminar y ver resultados</button>
+        <button class="btn btn-ghost" onclick="resetScores()">Reiniciar marcador</button>
+        <button class="btn btn-ghost" onclick="newGame()">Nuevo juego</button>
+      </div>
+    </header>
+
+    <div class="scoreboard" id="scoreboard"></div>
+    <div class="turnbar" id="turnbar"></div>
+    <div class="board" id="board"></div>
+
+    <p class="footnote">El borde marca al equipo al que le toca; la corona dorada, al primer lugar, y la plateada, al segundo.
+      Gira la ruleta: la voz lee la pregunta y, al terminar, corren <span class="nTurno"></span> segundos. Toca la letra que diga el equipo:
+      si falla, se tacha y se abre el robo (<span class="nRobo"></span> segundos y hojas en alto); cada equipo que tenga la correcta suma la mitad.
+      Tocar el nombre de un equipo le da el turno; tocar una casilla la abre sin ruleta.</p>
+  </section>
+
+</div>
+
+<div id="ruletaRoot"></div>
+<div id="modalRoot"></div>
+
+<script>
+/* ====== CONTENIDO: 30 reactivos en 6 temas, repaso de todo el semestre. ====== */
+const CLAVE = "lab";
+const CATEGORIES = [
+ {
+  "name": "¿Cualitativo o cuantitativo?",
+  "items": [
+   {
+    "pts": 100,
+    "q": "Hay un enfoque de investigación que mide cantidades con instrumentos iguales para todos y busca resultados que valgan para muchos casos. ¿Cuál es?",
+    "opts": [
+     "El enfoque cualitativo.",
+     "El enfoque fenomenológico.",
+     "El enfoque cuantitativo.",
+     "El enfoque histórico."
+    ],
+    "correct": 2,
+    "expl": "Va en orden, de la hipótesis a la medición. El cualitativo es flexible y busca los significados que la gente le da a lo que vive. Dónde repasarlo: Sesión 1, diapositivas 3 y 4."
+   },
+   {
+    "pts": 200,
+    "q": "Un equipo quiere saber cómo viven su oficio los lavacarros de Morelia. ¿Qué forma de recoger información le sirve más?",
+    "opts": [
+     "Entrevistas abiertas con varios de ellos.",
+     "Un cuestionario cerrado para cien de ellos.",
+     "Una tabla con sus precios por lavado.",
+     "Un conteo de autos lavados por día."
+    ],
+    "correct": 0,
+    "expl": "Cómo viven el oficio sólo lo pueden contar ellos, con sus palabras. Los números no dicen qué significa el trabajo para quien lo hace. Dónde repasarlo: Sesión 1, diapositiva 4."
+   },
+   {
+    "pts": 300,
+    "q": "Un equipo escribió esta pregunta de investigación: \"¿Qué tan satisfechos se sienten los barberos de Fuentes de Morelia con su sueldo?\". No sirve para una investigación cualitativa. ¿Por qué?",
+    "opts": [
+     "Pregunta por la barbería y no por ellos.",
+     "No dice en qué lugar trabajan ellos.",
+     "Le habla de tú a un solo barbero.",
+     "Pide una calificación del uno al diez."
+    ],
+    "correct": 3,
+    "expl": "\"¿Qué tan...?\", \"¿cuánto...?\" y \"¿cuántos...?\" piden un número, como una encuesta. Así queda: \"¿Cómo valoran los barberos de la colonia Fuentes de Morelia lo que ganan?\". Dónde repasarlo: banco de preguntas de investigación."
+   },
+   {
+    "pts": 400,
+    "q": "Esta pregunta de investigación tiene una palabra que la vuelve cuantitativa: \"¿Cómo influye el ser barbero en la vida de los barberos de Morelia?\". ¿Cuál es esa palabra?",
+    "opts": [
+     "\"Cómo\", porque pide una lista de pasos.",
+     "\"Influye\", porque pide medir un efecto.",
+     "\"Vida\", porque es un tema muy amplio.",
+     "\"Morelia\", porque es un lugar grande."
+    ],
+    "correct": 1,
+    "expl": "Influye, impacto, afecta y determina piden medir causa y efecto. Mejor: \"¿Qué lugar ocupa el oficio en la vida diaria de los barberos de Morelia?\". Dónde repasarlo: banco de preguntas de investigación."
+   },
+   {
+    "pts": 500,
+    "q": "En una investigación cualitativa, ¿en qué momento pueden aparecer o cambiar las preguntas y las hipótesis?",
+    "opts": [
+     "Antes, durante o después de recoger los datos.",
+     "Sólo antes de salir al campo y nunca cambian.",
+     "Sólo al final, cuando ya terminó el análisis.",
+     "Sólo cuando ya se tienen cientos de casos medidos."
+    ],
+    "correct": 0,
+    "expl": "Es flexible y circular: se va y se vuelve entre el campo y las ideas. Por eso la hipótesis puede cambiar con cada entrevista. Dónde repasarlo: Sesión 1, diapositiva 4."
+   }
+  ]
+ },
+ {
+  "name": "Del tema a la pregunta",
+  "items": [
+   {
+    "pts": 100,
+    "q": "Un tema de investigación bien escrito dice a quiénes se estudia, dónde y cuándo. ¿Cuál de estos temas está completo?",
+    "opts": [
+     "La construcción y el trabajo de todos los albañiles de este país.",
+     "Los albañiles de obra pequeña en mi municipio, entre 2024 y 2026.",
+     "Mi tío, que trabaja de albañil en una obra grande de mi municipio.",
+     "Los albañiles de mi municipio ganan muy poco por lo que hacen."
+    ],
+    "correct": 1,
+    "expl": "Los otros son demasiado amplio (todo el país, sin periodo), una anécdota (mi tío) y una opinión (ganan poco). Dónde repasarlo: Sesión 4, diapositiva 2."
+   },
+   {
+    "pts": 200,
+    "q": "El problema de investigación es lo que te cuestionas sobre tu tema. ¿Con qué palabras empieza casi siempre?",
+    "opts": [
+     "¿Cuántos?, ¿cuándo? o ¿en dónde?",
+     "¿Quién?, ¿cuál? o ¿cuánto cuesta eso?",
+     "¿Por qué?, ¿cómo? o ¿qué significa?",
+     "¿Es cierto?, ¿se puede? o ¿hay?"
+    ],
+    "correct": 2,
+    "expl": "Las otras se contestan con un dato, un número o un sí, y ahí se acaba la investigación. Dónde repasarlo: Sesión 4, diapositiva 3."
+   },
+   {
+    "pts": 300,
+    "q": "Un equipo escribió esta pregunta de investigación: \"¿Los albañiles ganan poco?\". ¿Qué problema tiene?",
+    "opts": [
+     "Nadie entiende bien qué es lo que pregunta.",
+     "No hay nadie a quién ir a preguntarle eso.",
+     "Pregunta por la obra y no por los albañiles.",
+     "Se puede contestar con un simple sí o no."
+    ],
+    "correct": 3,
+    "expl": "Si te contestan \"sí\", se acabó la investigación. Arreglada: \"¿Cómo le hacen para que les alcance la semana los albañiles de mi colonia?\". Dónde repasarlo: Sesión 4, diapositiva 5."
+   },
+   {
+    "pts": 400,
+    "q": "Una pregunta de investigación tiene cuatro piezas: la palabra interrogante, lo que quiero saber, a quiénes y dónde y cuándo. En \"¿Cómo consiguen trabajo los albañiles de mi colonia, hoy?\", ¿qué pieza es \"de mi colonia, hoy\"?",
+    "opts": [
+     "Es el dónde y el cuándo.",
+     "Es lo que quiero saber.",
+     "Es a quiénes les pregunto.",
+     "Es la palabra con que empieza."
+    ],
+    "correct": 0,
+    "expl": "La palabra interrogante es \"¿Cómo\", lo que quiero saber es \"consiguen trabajo\" y a quiénes es \"los albañiles\". Dónde repasarlo: Sesión 4, diapositiva 6."
+   },
+   {
+    "pts": 500,
+    "q": "Esta pregunta de investigación habla del negocio y no de las personas, y no dice dónde: \"¿Cuáles son las estrategias de los carpinteros para promocionar sus muebles?\". ¿Cuál de estas versiones la corrige?",
+    "opts": [
+     "¿Cuánto venden cada mes los carpinteros de mi colonia, hoy?",
+     "¿Qué muebles anuncian más los carpinteros de mi colonia, hoy?",
+     "¿Cómo dan a conocer su trabajo los carpinteros de mi colonia?",
+     "¿Cómo promocionarías tus muebles si tú fueras uno de ellos?"
+    ],
+    "correct": 2,
+    "expl": "Las otras tres tienen su propio problema: una pide un número, otra una lista y la última habla de quien pregunta, no de los carpinteros. Dónde repasarlo: banco de preguntas de investigación."
+   }
+  ]
+ },
+ {
+  "name": "Pregunta, objetivo e hipótesis",
+  "items": [
+   {
+    "pts": 100,
+    "q": "¿Qué relación hay entre la pregunta de investigación y el objetivo general?",
+    "opts": [
+     "El objetivo es la respuesta a la pregunta.",
+     "Son la misma frase dicha de dos maneras.",
+     "El objetivo se escribe después del campo.",
+     "La pregunta es más amplia que el objetivo."
+    ],
+    "correct": 1,
+    "expl": "La pregunta dice lo que no saben; el objetivo, lo que van a hacer para saberlo. Sólo cambia el arranque: un verbo en infinitivo. Dónde repasarlo: Sesión 6, diapositiva 2."
+   },
+   {
+    "pts": 200,
+    "q": "Un objetivo cualitativo empieza con un verbo que deja hablar a las personas. ¿Cuál de estos verbos NO sirve, porque promete un resultado que sólo se consigue midiendo?",
+    "opts": [
+     "Comprender.",
+     "Describir.",
+     "Explorar.",
+     "Demostrar."
+    ],
+    "correct": 3,
+    "expl": "Demostrar, probar y comprobar ya saben la respuesta antes de preguntar. Comprender, describir y explorar dejan que los sujetos digan lo que pasa. Dónde repasarlo: Sesión 6, diapositiva 7."
+   },
+   {
+    "pts": 300,
+    "q": "Este es el objetivo general de un equipo: \"Comprender cómo aprendieron el oficio los taqueros del mercado y por qué sus hijos ya no quieren seguirlo\". ¿Qué problema identificas en este objetivo?",
+    "opts": [
+     "Son dos objetivos distintos unidos por una \"y\".",
+     "Usa un verbo que obliga a medir el resultado.",
+     "Ya decidió de antemano la respuesta con un adjetivo.",
+     "Está escrito como si fuera pregunta de entrevista."
+    ],
+    "correct": 0,
+    "expl": "Cómo aprendieron y por qué sus hijos no siguen son dos investigaciones. Hay que contar las \"y\": si unen dos cosas, hay que quedarse con una. Dónde repasarlo: Sesión 6, diapositivas 8 y 9."
+   },
+   {
+    "pts": 400,
+    "q": "Un equipo escribió su hipótesis y, en la entrevista, la persona dijo algo distinto. En una investigación cualitativa, ¿qué hace el equipo?",
+    "opts": [
+     "Busca otra persona que sí confirme la hipótesis.",
+     "Repite la entrevista hasta que salga igual.",
+     "Cambia su hipótesis: equivocarse es un hallazgo.",
+     "Descarta esa entrevista porque no le sirve."
+    ],
+    "correct": 2,
+    "expl": "Es una hipótesis de trabajo: no se prueba con estadística, se contrasta con lo que dice la gente. Lo que no esperaban también es un resultado. Dónde repasarlo: Sesión 12, diapositivas 6 y 7."
+   },
+   {
+    "pts": 500,
+    "q": "Un equipo tiene esta pregunta particular: \"¿Qué hace que los carniceros sigan en el oficio cuando bajan las ventas?\". ¿Cuál de estas hipótesis está bien escrita?",
+    "opts": [
+     "Siguen porque no estudiaron y no saben hacer otra cosa.",
+     "Creemos que siguen porque el negocio es de su familia.",
+     "Vamos a demostrar que los carniceros ganan muy poco.",
+     "Siguen por su familia y porque les gusta mucho vender."
+    ],
+    "correct": 1,
+    "expl": "Las otras fallan: una juzga a las personas antes de escucharlas, otra promete demostrar algo y la última pega dos hipótesis con una \"y\". Dónde repasarlo: Sesión 12, diapositivas 8 y 9."
+   }
+  ]
+ },
+ {
+  "name": "Al campo: observar y entrevistar",
+  "items": [
+   {
+    "pts": 100,
+    "q": "La bitácora de campo tiene dos columnas: lo que observamos y lo que interpretamos o nos preguntamos. Un equipo anotó: \"El señor está cansado\". ¿En qué columna va?",
+    "opts": [
+     "En la columna de lo que observamos.",
+     "En las dos columnas, porque ambas sirven.",
+     "En ninguna de las dos, no se anota.",
+     "En la columna de lo que interpretamos."
+    ],
+    "correct": 3,
+    "expl": "Si cualquier otra persona parada ahí vería lo mismo, es observación. \"Cansado\" es lo que nosotros pensamos al verlo, no algo que se ve. Dónde repasarlo: Sesión 8, diapositivas 1 y 2."
+   },
+   {
+    "pts": 200,
+    "q": "Una observación es algo que cualquier persona parada en el mismo lugar vería igual. ¿Cuál de estas frases de una bitácora es una observación?",
+    "opts": [
+     "Lleva una cubeta azul y un trapeador.",
+     "Lo hace así porque es más rápido.",
+     "Se ve cansado y un poco aburrido.",
+     "Hay demasiada gente en todo el pasillo."
+    ],
+    "correct": 0,
+    "expl": "Las otras son interpretaciones. Las delatan palabras como \"porque\", \"se ve\", \"parece\", \"creo\" y \"mucho\" o \"demasiado\". Dónde repasarlo: Sesión 8, diapositivas 2 y 3."
+   },
+   {
+    "pts": 300,
+    "q": "Las preguntas de investigación hablan de un grupo; las de entrevista se le hacen a una persona, frente a frente. ¿De qué tipo es \"¿Cómo te ganas a tus clientas?\"?",
+    "opts": [
+     "De investigación: habla de todo un grupo.",
+     "De entrevista: es para una sola persona.",
+     "De investigación: dice lugar y periodo.",
+     "De entrevista: sólo sirve para despedirse."
+    ],
+    "correct": 1,
+    "expl": "Una sola persona puede contestarla en ese momento, hablando de sí misma. La de investigación sería: \"¿Cómo se ganan a su clientela las manicuristas de mi colonia?\". Dónde repasarlo: Sesión 9, actividad \"¿De investigación o de entrevista?\"."
+   },
+   {
+    "pts": 400,
+    "q": "Al armar la guía de entrevista, ¿en qué orden conviene hacer las preguntas?",
+    "opts": [
+     "Delicadas, generales, complejas y de cierre.",
+     "Complejas, delicadas, generales y de cierre.",
+     "Generales, complejas, delicadas y de cierre.",
+     "De cierre, generales, delicadas y complejas."
+    ],
+    "correct": 2,
+    "expl": "Primero lo fácil, para ganar confianza; lo delicado va al final, como lo hizo Eva con los albañiles. Dónde repasarlo: Sesión 9, diapositiva 6, y Sesión 10, bloque 3."
+   },
+   {
+    "pts": 500,
+    "q": "Mertens clasifica las preguntas de entrevista en seis tipos: de opinión, de sentimientos, de conocimientos, sensitivas, de antecedentes y de simulación. ¿De qué tipo es \"¿A qué huele el taller cuando barniza un mueble?\"?",
+    "opts": [
+     "De opinión.",
+     "De simulación.",
+     "De antecedentes.",
+     "Sensitiva."
+    ],
+    "correct": 3,
+    "expl": "Las sensitivas preguntan por lo que se ve, se oye o se huele. Las de opinión, por lo que piensa; las de antecedentes, por lo que ha vivido. Dónde repasarlo: Sesión 9, diapositiva 5."
+   }
+  ]
+ },
+ {
+  "name": "¿A quién? La muestra y el protocolo",
+  "items": [
+   {
+    "pts": 100,
+    "q": "En una investigación cualitativa, ¿qué es lo más importante al elegir a quién entrevistar?",
+    "opts": [
+     "Que sean muchos, para poder generalizar.",
+     "Que nos ayuden a entender el problema.",
+     "Que se escojan al azar entre todos.",
+     "Que representen a todo el país entero."
+    ],
+    "correct": 1,
+    "expl": "Importa la riqueza y la profundidad de la información, no la cantidad. Por eso el tamaño de la muestra no se fija antes de empezar. Dónde repasarlo: Lectura 2, La muestra cualitativa, bloque 1."
+   },
+   {
+    "pts": 200,
+    "q": "Un equipo ya hizo varias entrevistas. ¿Cuándo puede dejar de buscar a más personas?",
+    "opts": [
+     "Cuando ya nadie le dice algo nuevo.",
+     "Cuando llega a las cien entrevistas.",
+     "Cuando el equipo se cansa de buscar.",
+     "Cuando todos dicen lo que suponía."
+    ],
+    "correct": 0,
+    "expl": "Se llama saturación: las personas nuevas ya no agregan nada que ayude a responder la pregunta. Dónde repasarlo: Lectura 2, La muestra cualitativa, bloque 1."
+   },
+   {
+    "pts": 300,
+    "q": "Un equipo decide entrevistar a una panadera con cuarenta años en el oficio porque sabe más que nadie de él. Según la lectura de la muestra, ¿qué tipo de muestra es?",
+    "opts": [
+     "De expertos.",
+     "De voluntarios.",
+     "Por conveniencia.",
+     "De casos tipo."
+    ],
+    "correct": 0,
+    "expl": "Para sus proyectos, quien ejerce el oficio es el experto. La de voluntarios se forma con quien se ofrece; la de conveniencia, con quien está a la mano. Dónde repasarlo: Lectura 2, La muestra cualitativa, bloques 3 y 4."
+   },
+   {
+    "pts": 400,
+    "q": "El protocolo tiene cuatro partes: planteamiento, preguntas y objetivos, hipótesis y metodología. ¿En cuál se dice el enfoque, el tipo de entrevista y a quién se va a entrevistar?",
+    "opts": [
+     "En el planteamiento.",
+     "En la justificación.",
+     "En la metodología.",
+     "En la hipótesis."
+    ],
+    "correct": 2,
+    "expl": "El planteamiento lleva título, tema, problema y justificación. La metodología dice cómo y con quién se va a investigar. Dónde repasarlo: Sesión 13, actividad \"Mi protocolo de investigación\"."
+   },
+   {
+    "pts": 500,
+    "q": "En el protocolo, cada pregunta particular tiene su propio objetivo particular. ¿De dónde sale ese objetivo?",
+    "opts": [
+     "De la hipótesis que escribió el equipo.",
+     "De lo que contestó la persona entrevistada.",
+     "Del título que lleva toda la investigación.",
+     "De pasar la pregunta particular a un verbo."
+    ],
+    "correct": 3,
+    "expl": "Es la misma frase con otro arranque: \"¿Con quién aprendió el oficio...?\" se vuelve \"Identificar con quién aprendió el oficio...\". Dónde repasarlo: Sesión 12, diapositiva 4."
+   }
+  ]
+ },
+ {
+  "name": "Ética y fuentes",
+  "items": [
+   {
+    "pts": 100,
+    "q": "Antes de grabar una entrevista, ¿qué necesita el equipo de la persona entrevistada?",
+    "opts": [
+     "Una copia de su credencial para votar.",
+     "Su consentimiento, de preferencia por escrito.",
+     "La aprobación escrita de todos sus familiares.",
+     "Su firma debajo de cada respuesta grabada."
+    ],
+    "correct": 1,
+    "expl": "Si se va a grabar a los participantes, en audio o en video, ellos deben aprobarlo. Para eso es la carta de autorización. Dónde repasarlo: Lectura 4, La ética en la investigación, bloque 1."
+   },
+   {
+    "pts": 200,
+    "q": "La persona que iban a entrevistar no acepta que la graben en video. ¿Qué debe hacer el equipo?",
+    "opts": [
+     "Grabarla sin avisarle, con el celular.",
+     "Buscar a otra persona que sí acepte.",
+     "Escribir de memoria lo que contestó.",
+     "Usar la entrevista de otro equipo."
+    ],
+    "correct": 1,
+    "expl": "Sin permiso no se graba, y sin grabación no hay evidencia de la entrevista. Por eso hay que avisar desde que se pide la cita. Dónde repasarlo: Proyecto 3 y carta de autorización."
+   },
+   {
+    "pts": 300,
+    "q": "En una investigación se usan seudónimos, es decir, nombres inventados en lugar de los nombres reales. ¿Para qué sirven?",
+    "opts": [
+     "Para que el informe se lea más bonito.",
+     "Para no tener que pedir permiso a nadie.",
+     "Para que nadie pueda revisar el trabajo.",
+     "Para no revelar quién dio cada dato."
+    ],
+    "correct": 3,
+    "expl": "Es la confidencialidad: no se revela la identidad de los participantes ni de quién salió cada dato. Dónde repasarlo: Lectura 4, La ética en la investigación, bloque 2."
+   },
+   {
+    "pts": 400,
+    "q": "En la película \"El precio de la verdad\", ¿qué hizo el periodista Stephen Glass?",
+    "opts": [
+     "Copió los artículos de otros periodistas.",
+     "Reveló el nombre de una fuente secreta.",
+     "Inventó fuentes, citas y hasta empresas.",
+     "Publicó unas fotografías sin pedir permiso."
+    ],
+    "correct": 2,
+    "expl": "Por eso en su proyecto cada foto lleva una cita literal con su minuto: la grabación demuestra que la persona sí lo dijo. Dónde repasarlo: Actividad 3, Shattered Glass."
+   },
+   {
+    "pts": 500,
+    "q": "Para convencerla, un equipo le promete a la entrevistada que su negocio saldrá en el periódico, y no es cierto. ¿Qué regla de ética rompe?",
+    "opts": [
+     "No decepcionar: promete algo que no podrá cumplir.",
+     "El anonimato: revela de quién salió cada dato.",
+     "El consentimiento: la graba sin pedirle permiso.",
+     "La confidencialidad: cuenta lo que dijo en privado."
+    ],
+    "correct": 0,
+    "expl": "Hay que hablarles con claridad de lo que ganan al participar y nunca prometer algo que no se pueda cumplir. A cambio, basta algún beneficio, o al menos las gracias. Dónde repasarlo: Lectura 4, La ética en la investigación, bloque 3."
+   }
+  ]
+ }
+];
+/* ====== FIN DEL CONTENIDO ====== */
+
+const LETTERS = ["A","B","C","D"];
+// Sin dorado: el dorado queda sólo para la corona del primer lugar.
+const COLORS = ["#2a9d8f","#e76f51","#5fa8e6","#b48ad9","#6fc28b","#f06292"];
+const TEMA_COLORES = ["#e63946","#f3722c","#d4a017","#2a9d4f","#1d7fd1","#8e44ad","#c2185b","#00897b"];
+const T_TURNO = 37;   // segundos del equipo en turno; con voz, corren cuando termina de leer
+const T_ROBO = 10;    // segundos para que los demás escriban su letra
+const K_JUEGO = "trivia:" + CLAVE + ":juego";
+const K_AJUSTES = "trivia:" + CLAVE + ":ajustes";
+
+let teams = [];        // {name, score, color}
+let teamCount = 4;
+let used = {};         // "c-r" -> {turno, acerto, robaron}
+let turn = 0;          // equipo al que le toca
+let P = null;          // la pregunta abierta
+let ajustes = {voz:true, vozNombre:"", velocidad:1, sonidos:true, modo:"rondas"};
+try{ Object.assign(ajustes, JSON.parse(localStorage.getItem(K_AJUSTES) || "{}")); }catch(e){}
+let modo = ajustes.modo === "azar" ? "azar" : "rondas";
+
+function guardarAjustes(){ try{ localStorage.setItem(K_AJUSTES, JSON.stringify(ajustes)); }catch(e){} }
+function $(id){ return document.getElementById(id); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m])); }
+function key(c,r){ return c + "-" + r; }
+function mitad(p){ return Math.round(p / 2); }
+function totalCasillas(){ return CATEGORIES.reduce((n,c) => n + c.items.length, 0); }
+function usadas(){ return Object.keys(used).length; }
+function valores(){ return [...new Set(CATEGORIES.flatMap(c => c.items.map(i => i.pts)))].sort((a,b) => a - b); }
+function colorTema(c){ return TEMA_COLORES[c % TEMA_COLORES.length]; }
+
+/* ---------- Rondas y casillas que pueden salir ---------- */
+// En cada ronda todos juegan el mismo valor; cada equipo, tantas veces como quepan (6 temas / equipos).
+function porRonda(){ return Math.max(1, Math.floor(CATEGORIES.length / teams.length)) * teams.length; }
+function rondaActual(){
+  const vals = valores();
+  for(let i = 0; i < vals.length; i++){
+    const v = vals[i];
+    let hechas = 0, libres = 0;
+    CATEGORIES.forEach((cat,c) => cat.items.forEach((it,r) => { if(it.pts === v){ if(used[key(c,r)]) hechas++; else libres++; } }));
+    if(hechas < porRonda() && libres > 0) return {v, n:i + 1, de:vals.length, hechas, cupo:porRonda()};
+  }
+  return null;
+}
+function totalAzar(){ return Math.floor(totalCasillas() / teams.length) * teams.length; }
+function juegoTerminado(){
+  if(!teams.length) return false;
+  return modo === "rondas" ? rondaActual() === null : usadas() >= totalAzar();
+}
+function candidatos(){
+  const out = [];
+  const ra = modo === "rondas" ? rondaActual() : null;
+  if(modo === "rondas" && !ra) return out;
+  CATEGORIES.forEach((cat,c) => cat.items.forEach((it,r) => {
+    if(!used[key(c,r)] && (!ra || it.pts === ra.v)) out.push({c, r});
+  }));
+  return out;
+}
+
+/* ---------- Sonidos (sin archivos) ---------- */
+let actx = null;
+function despertarAudio(){
+  try{
+    if(!actx){ const AC = window.AudioContext || window.webkitAudioContext; if(AC) actx = new AC(); }
+    if(actx && actx.state === "suspended") actx.resume();
+  }catch(e){}
+}
+function tono(f, dur, tipo, vol, desde){
+  if(!ajustes.sonidos || !actx) return;
+  try{
+    const t = actx.currentTime + (desde || 0);
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = tipo || "sine"; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol || 0.15, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(t); o.stop(t + dur + 0.03);
+  }catch(e){}
+}
+const SON = {
+  clic(){ tono(1400, .03, "square", .035); },
+  tic(){ tono(1000, .07, "square", .07); },
+  ding(){ tono(1046, .18, "sine", .14); tono(1568, .35, "sine", .12, .12); },
+  fin(){ tono(220, .8, "sawtooth", .13); tono(165, .8, "sawtooth", .09); },
+  bien(){ tono(660, .18, "sine", .2); tono(880, .18, "sine", .2, .13); tono(1320, .4, "sine", .18, .26); },
+  mal(){ tono(196, .5, "square", .1); tono(185, .5, "square", .08, .05); },
+  arriba(){ tono(523, .14, "triangle", .22); tono(659, .14, "triangle", .22, .12); tono(784, .5, "triangle", .24, .24); }
+};
+
+/* ---------- Voz (la del navegador) ---------- */
+function trocear(texto){
+  // Chrome corta las voces de Google tras unos 15 s: se lee por frases cortas.
+  const limpio = String(texto).replace(/\s+/g, " ").trim();
+  if(!limpio) return [];
+  const frases = limpio.match(/[^.!?;:]+[.!?;:]*\s*/g) || [limpio];
+  const out = []; let cur = "";
+  frases.forEach(f => { if(cur && (cur + f).length > 180){ out.push(cur.trim()); cur = ""; } cur += f; });
+  if(cur.trim()) out.push(cur.trim());
+  return out.flatMap(s => {
+    if(s.length <= 220) return [s];
+    const r = []; let c = "";
+    s.split(/,\s+/).forEach((p, i, arr) => {
+      const pieza = p + (i < arr.length - 1 ? "," : "");
+      if(c && (c + " " + pieza).length > 200){ r.push(c); c = pieza; } else c = c ? c + " " + pieza : pieza;
+    });
+    if(c) r.push(c);
+    return r;
+  });
+}
+const voz = {
+  lista: [], gen: 0, vivas: [],
+  hay(){ return "speechSynthesis" in window && this.lista.length > 0; },
+  cargar(){
+    if(!("speechSynthesis" in window)) return;
+    let todas = [];
+    try{ todas = speechSynthesis.getVoices() || []; }catch(e){}
+    const puntos = v => {
+      const l = (v.lang || "").toLowerCase().replace("_", "-");
+      let p = 0;
+      if(l === "es-mx") p += 40; else if(l === "es-us" || l === "es-419") p += 30; else if(l.startsWith("es-")) p += 10;
+      if(/natural/i.test(v.name)) p += 25;
+      if(/google/i.test(v.name)) p += 8;
+      if(/online/i.test(v.name)) p += 4;
+      return p;
+    };
+    this.lista = todas.filter(v => /^es([-_]|$)/i.test(v.lang || "")).sort((a,b) => puntos(b) - puntos(a));
+    pintarVoces(); pintarVozBtn();
+  },
+  elegida(){
+    if(!this.lista.length) return null;
+    return this.lista.find(v => v.name === ajustes.vozNombre) || this.lista[0];
+  },
+  callar(){
+    this.gen++; this.vivas = [];
+    try{ if("speechSynthesis" in window) speechSynthesis.cancel(); }catch(e){}
+  },
+  // Lee las partes en orden y avisa al terminar (o si la voz se traba).
+  decir(partes, alTerminar, forzar){
+    this.callar();
+    const g = this.gen;
+    const avisar = () => setTimeout(() => { if(g === this.gen && alTerminar) alTerminar(); }, 0);
+    if(!(forzar || ajustes.voz) || !this.hay()){ avisar(); return; }
+    const trozos = partes.flatMap(trocear);
+    if(!trozos.length){ avisar(); return; }
+    const v = this.elegida(), rate = +ajustes.velocidad || 1;
+    const palabras = trozos.join(" ").split(/\s+/).length;
+    const esperado = palabras / (2.3 * rate) + trozos.length * 0.5;
+    let hecho = false, empezo = false, perro1 = 0, perro2 = 0;
+    const fin = () => {
+      if(hecho || g !== this.gen) return;
+      hecho = true; clearTimeout(perro1); clearTimeout(perro2);
+      if(alTerminar) alTerminar();
+    };
+    perro1 = setTimeout(() => { if(!empezo) fin(); }, 5000);
+    perro2 = setTimeout(fin, (esperado * 1.8 + 6) * 1000);
+    setTimeout(() => {
+      if(g !== this.gen) return;
+      trozos.forEach((t, i) => {
+        const u = new SpeechSynthesisUtterance(t);
+        if(v){ u.voice = v; u.lang = v.lang; } else u.lang = "es-MX";
+        u.rate = rate;
+        u.onstart = () => { empezo = true; };
+        if(i === trozos.length - 1) u.onend = fin;
+        u.onerror = e => { if(e && (e.error === "interrupted" || e.error === "canceled")) return; fin(); };
+        this.vivas.push(u);
+        try{ speechSynthesis.speak(u); }catch(err){ fin(); }
+      });
+    }, 90);
+  }
+};
+function vozActiva(){ return !!ajustes.voz && voz.hay(); }
+
+/* ---------- Pantalla de inicio ---------- */
+function buildSetup(){
+  const cr = $("countRow"); cr.innerHTML = "";
+  for(let n = 2; n <= 6; n++){
+    const b = document.createElement("button");
+    b.textContent = n;
+    if(n === teamCount) b.classList.add("on");
+    b.onclick = () => { teamCount = n; buildSetup(); };
+    cr.appendChild(b);
+  }
+  const nm = $("names");
+  const prev = [...nm.querySelectorAll("input")].map(i => i.value);
+  nm.innerHTML = "";
+  for(let i = 0; i < teamCount; i++){
+    const row = document.createElement("div"); row.className = "nrow";
+    const dot = document.createElement("span"); dot.className = "dot"; dot.style.background = COLORS[i % COLORS.length];
+    const inp = document.createElement("input");
+    inp.placeholder = "Equipo " + (i + 1);
+    inp.value = prev[i] || ("Equipo " + (i + 1));
+    row.appendChild(dot); row.appendChild(inp);
+    nm.appendChild(row);
+  }
+  pintarModo(); pintarAjustes(); pintarPendiente();
+}
+function pintarModo(){ document.querySelectorAll("#modoRow button").forEach(b => b.classList.toggle("on", b.dataset.modo === modo)); }
+function elegirModo(m){ modo = m; ajustes.modo = m; guardarAjustes(); pintarModo(); }
+function ponerVoz(si){ ajustes.voz = si; guardarAjustes(); if(!si) voz.callar(); pintarAjustes(); pintarVozBtn(); }
+function ponerSonidos(si){ ajustes.sonidos = si; guardarAjustes(); pintarAjustes(); if(si){ despertarAudio(); SON.ding(); } }
+function pintarAjustes(){
+  $("vozSi").classList.toggle("on", !!ajustes.voz);
+  $("vozNo").classList.toggle("on", !ajustes.voz);
+  $("sonSi").classList.toggle("on", !!ajustes.sonidos);
+  $("sonNo").classList.toggle("on", !ajustes.sonidos);
+  $("velSel").value = String(+ajustes.velocidad || 1);
+  $("filaVoz").classList.toggle("hide", !ajustes.voz);
+  pintarVoces();
+}
+function pintarVoces(){
+  const sel = $("vozSel"), nota = $("vozNota");
+  if(!sel || !nota) return;
+  if(!voz.hay()){
+    sel.innerHTML = '<option value="">(sin voces en español)</option>';
+    nota.textContent = ("speechSynthesis" in window)
+      ? "Este navegador no tiene voces en español (o todavía las está cargando). Sin voz, los " + T_TURNO + " segundos corren desde que se abre la pregunta."
+      : "Este navegador no puede leer en voz alta. Los " + T_TURNO + " segundos corren desde que se abre la pregunta.";
+    return;
+  }
+  sel.innerHTML = voz.lista.map(v => `<option value="${escapeHtml(v.name)}">${escapeHtml(v.name)} (${escapeHtml(v.lang)})</option>`).join("");
+  const elegida = voz.elegida();
+  sel.value = elegida ? elegida.name : "";
+  nota.textContent = ajustes.voz
+    ? "La voz lee la pregunta y las cuatro opciones; los " + T_TURNO + " segundos corren cuando termina. En Microsoft Edge hay voces más naturales (las que dicen \"Natural\")."
+    : "Sin voz, los " + T_TURNO + " segundos corren desde que se abre la pregunta.";
+}
+function probarVoz(){
+  despertarAudio(); voz.cargar();
+  if(!voz.hay()){ alert("Este navegador no tiene voces en español."); return; }
+  voz.decir(["Hola. Así se va a escuchar la trivia. Opción A: la voz también lee las respuestas."], null, true);
+}
+
+/* ---------- Juego guardado (por si se recarga la página) ---------- */
+function guardar(){ try{ localStorage.setItem(K_JUEGO, JSON.stringify({teams, used, turn, modo, t:Date.now()})); }catch(e){} }
+function leerGuardado(){
+  try{
+    const g = JSON.parse(localStorage.getItem(K_JUEGO) || "null");
+    if(g && Array.isArray(g.teams) && g.teams.length >= 2 && g.used && Date.now() - g.t < 12 * 3600 * 1000) return g;
+  }catch(e){}
+  return null;
+}
+function pintarPendiente(){
+  const box = $("pendiente"), g = leerGuardado();
+  if(!g || (!Object.keys(g.used).length && g.teams.every(t => !t.score))){ box.classList.add("hide"); return; }
+  const min = Math.max(1, Math.round((Date.now() - g.t) / 60000));
+  const cuando = min < 60 ? "hace " + min + " min" : "hace " + Math.round(min / 60) + " h";
+  const jugadas = Object.keys(g.used).length;
+  box.innerHTML = `<p><b>Hay un juego sin terminar</b> (${cuando}, ${jugadas} ${jugadas === 1 ? "pregunta jugada" : "preguntas jugadas"}): ${g.teams.map(t => escapeHtml(t.name) + " " + t.score).join(" · ")}.</p>
+    <div class="fila"><button class="btn btn-teal" onclick="continuarGuardado()">Continuar ese juego</button>
+    <button class="btn btn-ghost" onclick="descartarGuardado()">Descartarlo</button></div>`;
+  box.classList.remove("hide");
+}
+function continuarGuardado(){
+  const g = leerGuardado(); if(!g) return;
+  teams = g.teams; used = g.used; turn = g.turn || 0; modo = g.modo === "azar" ? "azar" : "rondas";
+  if(turn >= teams.length) turn = 0;
+  mostrarJuego();
+}
+function descartarGuardado(){ try{ localStorage.removeItem(K_JUEGO); }catch(e){} pintarPendiente(); }
+
+/* ---------- Arranque y botones de arriba ---------- */
+function startGame(){
+  const inputs = [...document.querySelectorAll("#names input")];
+  teams = inputs.map((inp, i) => ({name:(inp.value.trim() || ("Equipo " + (i + 1))), score:0, color:COLORS[i % COLORS.length]}));
+  used = {}; turn = 0;
+  mostrarJuego();
+}
+function mostrarJuego(){
+  despertarAudio();
+  $("setup").classList.add("hide");
+  $("game").classList.remove("hide");
+  window.scrollTo(0, 0);
+  guardar(); renderAll();
+}
+function renderAll(){ renderScoreboard(); renderTurnbar(); renderBoard(); pintarVozBtn(); }
+function newGame(sinPreguntar){
+  if(!sinPreguntar && usadas() && !confirm("¿Volver a la pantalla de inicio? El juego queda guardado y puedes continuarlo desde ahí.")) return;
+  cerrarTodo();
+  $("game").classList.add("hide");
+  $("setup").classList.remove("hide");
+  buildSetup();
+}
+function resetScores(sinPreguntar){
+  if(!sinPreguntar && !confirm("¿Reiniciar el marcador? Se borran los puntos y el tablero vuelve a empezar.")) return;
+  teams.forEach(t => t.score = 0); used = {}; turn = 0;
+  guardar(); renderAll();
+}
+function cerrarTodo(){ voz.callar(); detenerReloj(); ruletaGen++; P = null; $("ruletaRoot").innerHTML = ""; $("modalRoot").innerHTML = ""; }
+function pintarVozBtn(){
+  const b = $("vozBtn"); if(!b) return;
+  b.textContent = !voz.hay() ? "🔇 Sin voz" : (ajustes.voz ? "🔊 Voz: sí" : "🔇 Voz: no");
+  b.disabled = !voz.hay();
+}
+function alternarVoz(){ ajustes.voz = !ajustes.voz; guardarAjustes(); if(!ajustes.voz) voz.callar(); pintarVozBtn(); pintarAjustes(); }
+
+/* ---------- Marcador: coronas y turno ---------- */
+function coronas(){
+  const sc = teams.map(t => t.score);
+  const top = Math.max(...sc);
+  const resto = sc.filter(s => s < top);
+  const seg = resto.length ? Math.max(...resto) : -Infinity;
+  return teams.map(t => (top > 0 && t.score === top) ? "oro" : (seg > 0 && t.score === seg) ? "plata" : "");
+}
+function svgCorona(tipo){
+  const f = tipo === "oro" ? ["#f5c542","#a8790f","#d9695f"] : ["#e3e8ee","#7d8896","#5b8fd6"];
+  const nombre = tipo === "oro" ? "Primer lugar" : "Segundo lugar";
+  return `<svg class="corona" viewBox="0 0 26 22" role="img" aria-label="${nombre}"><title>${nombre}</title>
+    <path d="M4 17 L2 7 L8 11 L13 3.5 L18 11 L24 7 L22 17 Z" fill="${f[0]}" stroke="${f[1]}" stroke-width="1.3" stroke-linejoin="round"/>
+    <rect x="4" y="17" width="18" height="3.2" rx="1" fill="${f[0]}" stroke="${f[1]}" stroke-width="1.3"/>
+    <circle cx="2" cy="6.2" r="1.7" fill="${f[0]}" stroke="${f[1]}" stroke-width="1"/>
+    <circle cx="13" cy="2.6" r="1.9" fill="${f[0]}" stroke="${f[1]}" stroke-width="1"/>
+    <circle cx="24" cy="6.2" r="1.7" fill="${f[0]}" stroke="${f[1]}" stroke-width="1"/>
+    <circle cx="13" cy="13" r="1.8" fill="${f[2]}"/></svg>`;
+}
+function renderScoreboard(){
+  const cor = coronas();
+  const sb = $("scoreboard"); sb.innerHTML = "";
+  teams.forEach((t, i) => {
+    const el = document.createElement("div");
+    el.className = "team" + (i === turn ? " turno" : "");
+    el.style.setProperty("--tc", t.color);
+    el.title = i === turn ? "Le toca a este equipo" : "Toca para darle el turno a este equipo";
+    el.onclick = () => darTurno(i);
+    el.innerHTML = `${i === turn ? '<span class="letoca">Le toca</span>' : ""}
+      <span class="dot" style="background:${t.color}"></span>
+      <div class="nm">${cor[i] ? svgCorona(cor[i]) : ""}<span>${escapeHtml(t.name)}</span></div>
+      <span class="sc">${t.score}</span>
+      <span class="adj">
+        <button title="Sumar 50" onclick="event.stopPropagation();adjust(${i},50)">+</button>
+        <button title="Restar 50" onclick="event.stopPropagation();adjust(${i},-50)">−</button>
+      </span>`;
+    sb.appendChild(el);
+  });
+}
+function adjust(i, d){ teams[i].score += d; guardar(); renderScoreboard(); }
+function darTurno(i){ if(P) return; turn = i; guardar(); renderScoreboard(); renderTurnbar(); }
+
+function renderTurnbar(){
+  const tb = $("turnbar");
+  if(!teams.length){ tb.innerHTML = ""; return; }
+  const t = teams[turn];
+  tb.style.setProperty("--tc", t.color);
+  if(juegoTerminado()){
+    tb.innerHTML = `<div><span class="tb-info">Se jugaron todas las ${modo === "rondas" ? "rondas" : "preguntas"}</span><span class="tb-le">¡Fin del juego!</span></div>
+      <button class="btn btn-gold btn-big" onclick="showResults()">Ver resultados</button>`;
+    return;
+  }
+  let info;
+  if(modo === "rondas"){ const ra = rondaActual(); info = `Ronda ${ra.n} de ${ra.de} · valen ${ra.v} · pregunta ${ra.hechas + 1} de ${ra.cupo}`; }
+  else info = `Todo al azar · pregunta ${usadas() + 1} de ${totalAzar()}`;
+  tb.innerHTML = `<div><span class="tb-info">${info}</span><span class="tb-le">Le toca a <b>${escapeHtml(t.name)}</b></span></div>
+    <button class="btn btn-gold btn-big" onclick="girar()">Girar la ruleta</button>`;
+}
+
+/* ---------- Tablero ---------- */
+function ganadores(u){ if(!u) return []; return u.acerto ? [u.turno] : (u.robaron || []); }
+function renderBoard(){
+  const board = $("board"); board.innerHTML = "";
+  const ra = modo === "rondas" ? rondaActual() : null;
+  CATEGORIES.forEach((cat, c) => {
+    const col = document.createElement("div"); col.className = "cat";
+    col.innerHTML = `<div class="cat-h" style="--tema:${colorTema(c)}"><span>${escapeHtml(cat.name)}</span></div>`;
+    const tiles = document.createElement("div"); tiles.className = "tiles";
+    cat.items.forEach((it, r) => {
+      const u = used[key(c, r)];
+      const tile = document.createElement("button");
+      let cls = "tile";
+      if(u) cls += " used";
+      else if(ra && it.pts === ra.v) cls += " ronda";
+      else if(ra && it.pts < ra.v) cls += " pasada";
+      tile.className = cls;
+      if(u){
+        const quien = ganadores(u).map(i => `<i style="background:${teams[i] ? teams[i].color : "#888"}"></i>`).join("");
+        tile.innerHTML = "✓" + (quien ? `<span class="quien">${quien}</span>` : "");
+        tile.disabled = true;
+      } else {
+        tile.textContent = it.pts;
+        tile.title = "Abrir esta pregunta sin ruleta";
+        tile.onclick = () => { if(!bloqueado()) openQuestion(c, r); };
+      }
+      tiles.appendChild(tile);
+    });
+    col.appendChild(tiles); board.appendChild(col);
+  });
+}
+
+/* ---------- Ruleta ---------- */
+// Parte el nombre del tema en renglones parejos para la rebanada.
+function partirEtiqueta(texto, max){
+  const pal = String(texto).trim().split(/\s+/);
+  for(let n = 1; n <= Math.min(4, pal.length); n++){
+    let mejor = null;
+    const probar = (inicio, quedan, acc) => {
+      if(quedan === 1){
+        const l = acc.concat([pal.slice(inicio).join(" ")]);
+        const largo = Math.max(...l.map(x => x.length));
+        if(largo > max) return;
+        let costo = largo;
+        l.slice(0, -1).forEach(x => {
+          const ult = x.split(" ").pop();
+          if(ult.length <= 2) costo += 4;
+          if(/[?:,.]$/.test(x)) costo -= 3;
+        });
+        if(!mejor || costo < mejor.costo) mejor = {l, costo};
+        return;
+      }
+      for(let k = inicio + 1; k <= pal.length - quedan + 1; k++) probar(k, quedan - 1, acc.concat([pal.slice(inicio, k).join(" ")]));
+    };
+    probar(0, n, []);
+    if(mejor) return mejor.l;
+  }
+  return [String(texto)];
+}
+function svgRuleta(disp){
+  const C = CATEGORIES.length, SEG = 360 / C, R = 100;
+  const p = a => (R * Math.cos(a)).toFixed(2) + " " + (R * Math.sin(a)).toFixed(2);
+  let s = "";
+  CATEGORIES.forEach((cat, c) => {
+    const a1 = (c * SEG - SEG / 2) * Math.PI / 180, a2 = (c * SEG + SEG / 2) * Math.PI / 180;
+    s += `<path id="seg-${c}" d="M0 0 L${p(a1)} A${R} ${R} 0 0 1 ${p(a2)} Z" fill="${disp.has(c) ? colorTema(c) : "#33465a"}" stroke="#0e2740" stroke-width="1.6"/>`;
+  });
+  CATEGORIES.forEach((cat, c) => {
+    const on = disp.has(c);
+    const lineas = partirEtiqueta(cat.name, 16);
+    const fs = lineas.length > 3 ? 6 : 7.4, lh = fs * 1.12;
+    const y0 = -(lineas.length - 1) * lh / 2 + fs * 0.35;
+    s += `<g transform="rotate(${(c * SEG).toFixed(2)})"><text text-anchor="end" font-family="Georgia,serif" font-weight="700" font-size="${fs}"`
+      + ` fill="${on ? "#fff" : "#8796a6"}" stroke="${on ? "rgba(0,0,0,.45)" : "none"}" stroke-width="1.4" paint-order="stroke">`
+      + lineas.map((ln, i) => `<tspan x="${R - 7}" y="${(y0 + i * lh).toFixed(2)}">${escapeHtml(ln)}</tspan>`).join("")
+      + `</text></g>`;
+  });
+  return `<svg viewBox="-106 -106 212 212" aria-hidden="true"><circle r="105" fill="#0e2740"/>${s}
+    <circle r="102" fill="none" stroke="#e0b13a" stroke-width="4"/>
+    <circle r="15" fill="#e0b13a" stroke="#0e2740" stroke-width="2"/><circle r="6" fill="#0e2740"/></svg>`;
+}
+let giroAng = 0, ruletaGen = 0;
+function girar(){
+  if(P || $("ruletaRoot").innerHTML.trim() || bloqueado()) return;
+  if(juegoTerminado()){ showResults(); return; }
+  const cand = candidatos();
+  if(!cand.length){ showResults(); return; }
+  despertarAudio(); voz.callar();
+  const gen = ++ruletaGen;
+  const el = cand[Math.floor(Math.random() * cand.length)];
+  const disp = new Set(cand.map(x => x.c));
+  const t = teams[turn], ra = modo === "rondas" ? rondaActual() : null;
+  const C = CATEGORIES.length, SEG = 360 / C;
+  $("ruletaRoot").innerHTML = `
+    <div class="overlay" style="--tc:${t.color}">
+      <div class="ruleta-box">
+        <div class="ruleta-wrap">
+          <div class="ruleta-giro" id="giro" style="transform:rotate(${giroAng}deg)">${svgRuleta(disp)}</div>
+          <div class="ruleta-puntero"></div>
+        </div>
+        <div class="ruleta-lado">
+          <div class="quien">Ruleta de <b>${escapeHtml(t.name)}</b></div>
+          <div class="nr">${ra ? `Ronda ${ra.n} de ${ra.de}: todas valen ${ra.v}` : "Tema y valor al azar"}</div>
+          <div class="ruleta-res" id="ruletaRes"><div class="girando">Girando…</div></div>
+          <div class="ruleta-acts" id="ruletaActs"><button class="btn btn-ghost" onclick="cancelarRuleta()">Cancelar</button></div>
+        </div>
+      </div>
+    </div>`;
+  const giro = $("giro");
+  const jit = (Math.random() * 0.6 - 0.3) * SEG;
+  const delta = ((-(el.c * SEG + jit) - giroAng) % 360 + 360) % 360;
+  const fin = giroAng + (5 + Math.floor(Math.random() * 2)) * 360 + delta;
+  const DUR = 4800;
+  giro.getBoundingClientRect();
+  giro.style.transition = `transform ${DUR}ms cubic-bezier(.12,.62,.08,1)`;
+  giro.style.transform = `rotate(${fin}deg)`;
+  giroAng = ((fin % 360) + 360) % 360;
+  let ultimo = -1, listo = false, raf = 0;
+  const seguir = () => {
+    if(listo || gen !== ruletaGen) return;
+    const m = getComputedStyle(giro).transform;
+    const v = m && m.match(/matrix\(([^)]+)\)/);
+    if(v){
+      const n = v[1].split(",").map(Number);
+      const ang = Math.atan2(n[1], n[0]) * 180 / Math.PI;
+      const bajo = ((((-ang) % 360) + 360) % 360 + SEG / 2) % 360;
+      const idx = Math.floor(bajo / SEG) % C;
+      if(idx !== ultimo){ if(ultimo !== -1) SON.clic(); ultimo = idx; }
+    }
+    raf = requestAnimationFrame(seguir);
+  };
+  raf = requestAnimationFrame(seguir);
+  const terminar = () => { if(listo) return; listo = true; cancelAnimationFrame(raf); if(gen === ruletaGen) aterrizar(el, gen); };
+  giro.addEventListener("transitionend", terminar, {once:true});
+  setTimeout(terminar, DUR + 500);
+}
+function aterrizar(el, gen){
+  if(gen !== ruletaGen || !$("ruletaRes")) return;
+  const cat = CATEGORIES[el.c], it = cat.items[el.r];
+  const seg = $("seg-" + el.c);
+  if(seg && seg.ownerSVGElement){
+    const marco = seg.cloneNode(false);
+    marco.removeAttribute("id");
+    marco.setAttribute("fill", "none"); marco.setAttribute("stroke", "#fff"); marco.setAttribute("stroke-width", "4");
+    marco.setAttribute("class", "seg-gana");
+    seg.ownerSVGElement.appendChild(marco);
+  }
+  const res = $("ruletaRes");
+  const temaHtml = `<div class="tema"><i style="background:${colorTema(el.c)}"></i><span>${escapeHtml(cat.name)}</span></div>`;
+  const final = () => {
+    if(gen !== ruletaGen || !$("ruletaRes")) return;
+    res.innerHTML = temaHtml + `<div class="valor">${it.pts} <small>puntos</small></div><div class="abriendo">Abriendo la pregunta…</div>`;
+    SON.ding();
+    // Sin botón de "abrir": la pregunta se abre sola, y así ningún clic cae sobre una opción.
+    const nombre = cat.name.trim();
+    const espera = vozActiva() ? 600 : 1800;
+    voz.decir([`${nombre}${/[.?!]$/.test(nombre) ? "" : "."} Por ${it.pts} puntos.`], () => {
+      setTimeout(() => abrirDesdeRuleta(el.c, el.r, gen), espera);
+    });
+  };
+  const vals = cat.items.filter((x, r) => !used[key(el.c, r)]).map(x => x.pts);
+  if(modo === "azar" && vals.length > 1){
+    res.innerHTML = temaHtml + `<div class="valor" id="rodillo">${vals[0]}</div>`;
+    let n = 0;
+    const paso = () => {
+      if(gen !== ruletaGen || !$("rodillo")) return;
+      n++;
+      if(n >= 16){ final(); return; }
+      $("rodillo").textContent = vals[n % vals.length];
+      SON.clic();
+      setTimeout(paso, 55 + n * 11);
+    };
+    setTimeout(paso, 120);
+  } else final();
+}
+function abrirDesdeRuleta(c, r, gen){
+  if(gen !== ruletaGen || P) return;
+  ruletaGen++;
+  voz.callar();
+  $("ruletaRoot").innerHTML = "";
+  openQuestion(c, r);
+}
+function cancelarRuleta(){ ruletaGen++; voz.callar(); $("ruletaRoot").innerHTML = ""; bloquear(); }
+// Un doble clic no debe saltarse pasos: tras cerrar una capa, el tablero ignora clics un momento.
+let bloqueoHasta = 0;
+function bloquear(){ bloqueoHasta = performance.now() + 700; }
+function bloqueado(){ return performance.now() < bloqueoHasta; }
+function hace(ms){ return P && performance.now() - P.desde < ms; }
+
+/* ---------- Cronómetro ---------- */
+const R = {fin:0, total:0, quedan:0, activo:false, pausado:false, id:0, al:null, ult:null, robo:false, etiqueta:""};
+function ponerReloj(seg, total, clase, etiqueta){
+  const n = $("rNum"), l = $("rLbl"), rl = $("reloj"), b = $("barraIn"), br = $("barra");
+  if(!n) return;
+  n.textContent = seg === null ? "–" : Math.ceil(seg);
+  l.textContent = etiqueta || "";
+  rl.className = "reloj " + (clase || "");
+  if(b) b.style.width = (seg === null || !total) ? "100%" : Math.max(0, Math.min(100, seg / total * 100)) + "%";
+  if(br) br.className = "barra" + (clase === "urge" || clase === "cero" ? " urge" : "");
+}
+function iniciarReloj(seg, etiqueta, alTerminar, robo){
+  detenerReloj();
+  Object.assign(R, {total:seg, quedan:seg, activo:true, pausado:false, al:alTerminar, ult:null, robo:!!robo, etiqueta});
+  R.fin = performance.now() + seg * 1000;
+  R.id = setInterval(pasoReloj, 100);
+  pasoReloj();
+}
+function pasoReloj(){
+  if(!R.activo) return;
+  if(!R.pausado) R.quedan = Math.max(0, (R.fin - performance.now()) / 1000);
+  const s = Math.ceil(R.quedan);
+  const clase = R.pausado ? "pausa" : (R.quedan <= 0 ? "cero" : (s <= (R.robo ? 3 : 10) ? "urge" : ""));
+  ponerReloj(R.quedan, R.total, clase, R.pausado ? "En pausa: toca para seguir" : R.etiqueta);
+  if(!R.pausado && s !== R.ult){
+    if(s > 0 && s <= (R.robo ? 3 : 5)) SON.tic();
+    R.ult = s;
+  }
+  if(!R.pausado && R.quedan <= 0){
+    clearInterval(R.id); R.activo = false;
+    const al = R.al; R.al = null;
+    if(al) al();
+  }
+}
+function detenerReloj(){ clearInterval(R.id); R.activo = false; R.al = null; }
+function congelarReloj(){ const iba = R.activo; detenerReloj(); if(iba) ponerReloj(R.quedan, R.total, "pausa", ""); }
+function pausarReloj(){
+  if(!R.activo) return;
+  if(R.pausado){ R.pausado = false; R.fin = performance.now() + R.quedan * 1000; }
+  else { R.pausado = true; R.quedan = Math.max(0, (R.fin - performance.now()) / 1000); }
+  pasoReloj();
+}
+
+/* ---------- Pregunta: turno, robo y respuesta ---------- */
+function openQuestion(c, r){
+  if(P) return;
+  despertarAudio();
+  const cat = CATEGORIES[c], it = cat.items[r], t = teams[turn];
+  P = {c, r, fase:"lectura", tachada:-1, robaron:new Set(), dio:0, agotado:false, desde:performance.now()};
+  const optsHtml = it.opts.map((o, k) =>
+    `<button class="opt" id="opt-${k}" onclick="tocarLetra(${k})"><span class="lt">${LETTERS[k]}</span><span class="tx">${escapeHtml(o)}</span></button>`).join("");
+  $("modalRoot").innerHTML = `
+    <div class="overlay">
+      <div class="modal" style="--tc:${t.color}">
+        <div class="meta">
+          <span class="m-tema">${escapeHtml(cat.name)}</span>
+          <span class="m-pts">${it.pts} pts</span>
+          <span class="m-turno"><span class="dot"></span>Turno de ${escapeHtml(t.name)}</span>
+          <button class="m-cerrar" id="mCerrar" title="Cerrar sin calificar" onclick="cerrarPregunta()">✕</button>
+        </div>
+        <div class="reloj-row">
+          <div class="reloj espera" id="reloj" onclick="pausarReloj()" title="Toca para pausar o seguir"><span class="r-num" id="rNum">${T_TURNO}</span><span class="r-lbl" id="rLbl"></span></div>
+          <div class="barra" id="barra"><div id="barraIn"></div></div>
+        </div>
+        <div class="q">${escapeHtml(it.q)}</div>
+        <div class="opts">${optsHtml}</div>
+        <div id="aviso"></div>
+        <div id="explBox"></div>
+        <div class="actions" id="actions"></div>
+      </div>
+    </div>`;
+  faseLectura();
+}
+function partesPregunta(){
+  const it = CATEGORIES[P.c].items[P.r];
+  return [it.q].concat(it.opts.map((o, k) => `Opción ${LETTERS[k]}: ${o}`));
+}
+function faseLectura(){
+  P.fase = "lectura";
+  pintarAcciones();
+  if(vozActiva()){
+    R.quedan = T_TURNO; R.total = T_TURNO;
+    ponerReloj(T_TURNO, T_TURNO, "espera", "Leyendo… el tiempo empieza al terminar");
+    voz.decir(partesPregunta(), () => { if(P && P.fase === "lectura") faseTurno(); });
+  } else faseTurno();
+}
+function faseTurno(){
+  P.fase = "turno"; P.agotado = false;
+  pintarAcciones();
+  iniciarReloj(T_TURNO, "Tiempo para contestar", () => {
+    if(!P || P.fase !== "turno") return;
+    P.agotado = true;
+    SON.fin();
+    ponerReloj(0, T_TURNO, "cero", "¡Se acabó el tiempo!");
+    voz.decir(["¡Tiempo!"], null);
+    pintarAcciones();
+  });
+}
+function repetir(){
+  if(!P) return;
+  if(P.fase === "lectura") voz.decir(partesPregunta(), () => { if(P && P.fase === "lectura") faseTurno(); });
+  else if(P.fase === "turno") voz.decir(partesPregunta(), null);
+}
+function callarYEmpezar(){ if(!P || P.fase !== "lectura") return; voz.callar(); faseTurno(); }
+function opcionesActivas(si){ document.querySelectorAll("#modalRoot .opt").forEach(b => b.disabled = !si); }
+function marcarCorrecta(){ const it = CATEGORIES[P.c].items[P.r]; $("opt-" + it.correct).classList.add("correct"); opcionesActivas(false); }
+function mostrarPorQue(){ const it = CATEGORIES[P.c].items[P.r]; $("explBox").innerHTML = `<div class="expl"><b>Por qué:</b> ${escapeHtml(it.expl)}</div>`; }
+
+function tocarLetra(k){
+  // En el primer segundo nadie ha contestado: un clic ahí es de la capa anterior.
+  if(!P || (P.fase !== "lectura" && P.fase !== "turno") || k === P.tachada || hace(1200)) return;
+  const it = CATEGORIES[P.c].items[P.r], t = teams[turn];
+  voz.callar(); congelarReloj();
+  if(k === it.correct){
+    P.fase = "acierto"; P.dio = it.pts; P.desde = performance.now();
+    t.score += it.pts; guardar(); renderScoreboard();
+    marcarCorrecta(); mostrarPorQue();
+    $("aviso").innerHTML = `<div class="aviso bien">¡Correcto! ${escapeHtml(t.name)} suma ${it.pts} puntos.</div>`;
+    SON.bien();
+    voz.decir([`¡Correcto! ${t.name} suma ${it.pts} puntos.`], null);
+    pintarAcciones();
+  } else {
+    P.tachada = k;
+    $("opt-" + k).classList.add("tachada");
+    SON.mal();
+    faseRobo("Incorrecto.");
+  }
+}
+function noContesto(){
+  if(!P || (P.fase !== "lectura" && P.fase !== "turno") || hace(1200)) return;
+  voz.callar(); congelarReloj(); SON.mal();
+  faseRobo("Se acabó el tiempo.");
+}
+function faseRobo(intro){
+  P.fase = "robo"; P.desde = performance.now();
+  opcionesActivas(false);
+  $("aviso").innerHTML = `<div class="aviso robo">¡Robo! Los demás equipos escriben su letra en la hoja. Cuando el reloj llegue a cero, todos la levantan a la vez.</div>`;
+  pintarAcciones();
+  const arrancar = () => {
+    if(!P || P.fase !== "robo") return;
+    iniciarReloj(T_ROBO, "Robo: escriban su letra", () => { if(P && P.fase === "robo") faseArriba(); }, true);
+  };
+  if(vozActiva()){
+    R.quedan = T_ROBO; R.total = T_ROBO;
+    ponerReloj(T_ROBO, T_ROBO, "espera", "Robo: el tiempo empieza al terminar la voz");
+    voz.decir([`${intro} ¡Robo! Los demás equipos, escriban su letra.`], arrancar);
+  } else arrancar();
+}
+function faseArriba(){
+  if(!P || P.fase !== "robo" || hace(700)) return;
+  detenerReloj();
+  P.fase = "arriba"; P.desde = performance.now();
+  SON.arriba();
+  voz.decir(["¡Arriba!"], null);
+  ponerReloj(0, T_ROBO, "cero", "¡Hojas en alto!");
+  $("aviso").innerHTML = `<div class="aviso arriba">¡ARRIBA LAS HOJAS!</div>`;
+  pintarAcciones();
+}
+function revelar(){
+  if(!P || P.fase !== "arriba" || hace(700)) return;
+  voz.callar(); detenerReloj();
+  P.fase = "revelada"; P.desde = performance.now();
+  const it = CATEGORIES[P.c].items[P.r];
+  marcarCorrecta(); mostrarPorQue();
+  $("aviso").innerHTML = "";
+  ponerReloj(null, 0, "pausa", "");
+  voz.decir([`La respuesta correcta es la opción ${LETTERS[it.correct]}: ${it.opts[it.correct]}`], null);
+  pintarAcciones();
+}
+function alternarRobo(i){
+  if(!P || P.fase !== "revelada") return;
+  if(P.robaron.has(i)) P.robaron.delete(i); else P.robaron.add(i);
+  pintarAcciones();
+}
+function confirmarRobo(){
+  if(!P || P.fase !== "revelada" || hace(500)) return;
+  const m = mitad(CATEGORIES[P.c].items[P.r].pts), lista = [...P.robaron];
+  lista.forEach(i => teams[i].score += m);
+  terminarPregunta({turno:turn, acerto:false, robaron:lista});
+}
+function continuar(){ if(!P || P.fase !== "acierto" || hace(500)) return; terminarPregunta({turno:turn, acerto:true, robaron:[]}); }
+function deshacer(){
+  if(!P || !["acierto","robo","arriba"].includes(P.fase)) return;
+  voz.callar(); detenerReloj();
+  const it = CATEGORIES[P.c].items[P.r];
+  if(P.fase === "acierto" && P.dio){ teams[turn].score -= P.dio; P.dio = 0; guardar(); renderScoreboard(); }
+  if(P.tachada >= 0){ const o = $("opt-" + P.tachada); if(o) o.classList.remove("tachada"); P.tachada = -1; }
+  const oc = $("opt-" + it.correct); if(oc) oc.classList.remove("correct");
+  $("explBox").innerHTML = ""; $("aviso").innerHTML = "";
+  opcionesActivas(true);
+  P.fase = "turno"; P.agotado = false; P.desde = performance.now() - 2000;
+  ponerReloj(null, 0, "pausa", "Reloj detenido: toca la letra que dijo el equipo");
+  pintarAcciones();
+}
+function terminarPregunta(reg){
+  voz.callar(); detenerReloj();
+  used[key(P.c, P.r)] = reg;
+  P = null;
+  $("modalRoot").innerHTML = "";
+  bloquear();
+  turn = (turn + 1) % teams.length;
+  guardar(); renderAll();
+  if(juegoTerminado()) setTimeout(showResults, 350);
+}
+function cerrarPregunta(){
+  if(!P || (P.fase !== "lectura" && P.fase !== "turno")) return;
+  if(!confirm("¿Cerrar sin calificar? La casilla queda libre y el turno no cambia.")) return;
+  voz.callar(); detenerReloj();
+  P = null; $("modalRoot").innerHTML = "";
+  bloquear(); renderAll();
+}
+function pintarAcciones(){
+  if(!P) return;
+  const a = $("actions"), it = CATEGORIES[P.c].items[P.r], t = teams[turn];
+  const x = $("mCerrar"); if(x) x.classList.toggle("hide", !(P.fase === "lectura" || P.fase === "turno"));
+  // Ya resuelta la pregunta, el reloj sobra: se esconde para que quepan los botones.
+  const resuelta = P.fase === "acierto" || P.fase === "revelada";
+  const fr = document.querySelector("#modalRoot .reloj-row"); if(fr) fr.classList.toggle("hide", resuelta);
+  let h = "";
+  if(P.fase === "lectura" || P.fase === "turno"){
+    h = `<p class="pista">Toca la letra que diga <b>${escapeHtml(t.name)}</b>.</p>`
+      + (vozActiva() ? `<button class="btn btn-line" onclick="repetir()">🔊 Repetir</button>` : "")
+      + (P.fase === "lectura" && vozActiva() ? `<button class="btn btn-line" onclick="callarYEmpezar()">Callar y empezar el tiempo</button>` : "")
+      + `<button class="btn ${P.agotado ? "btn-warn pulso" : "btn-line"}" onclick="noContesto()">${P.agotado ? "Se acabó el tiempo: abrir el robo" : "No contestó: abrir el robo"}</button>`;
+  } else if(P.fase === "acierto"){
+    h = `<button class="btn btn-dark btn-big" onclick="continuar()">Continuar ▸</button>
+      <button class="btn btn-line" onclick="deshacer()">↩ Me equivoqué de letra</button>`;
+  } else if(P.fase === "robo"){
+    h = `<button class="btn btn-dark" onclick="faseArriba()">¡Arriba ya!</button>
+      <button class="btn btn-line" onclick="deshacer()">↩ Me equivoqué de letra</button>`;
+  } else if(P.fase === "arriba"){
+    h = `<button class="btn btn-dark btn-big" onclick="revelar()">Revelar la respuesta</button>
+      <button class="btn btn-line" onclick="deshacer()">↩ Me equivoqué de letra</button>`;
+  } else if(P.fase === "revelada"){
+    const m = mitad(it.pts), n = P.robaron.size;
+    const otros = teams.map((e, i) => ({e, i})).filter(o => o.i !== turn);
+    h = `<div class="award-label">¿Qué equipos tenían la letra correcta en la hoja? Cada uno suma ${m}.</div>
+      <div class="award">${otros.map(o => `<button class="${P.robaron.has(o.i) ? "on" : ""}" style="--c:${o.e.color}" onclick="alternarRobo(${o.i})">${escapeHtml(o.e.name)}</button>`).join("")}
+      <button class="confirmar" onclick="confirmarRobo()">${n ? `Dar ${m} a ${n === 1 ? "1 equipo" : n + " equipos"} ▸` : "Nadie la tenía ▸"}</button></div>`;
+  }
+  a.innerHTML = h;
+  if(resuelta){ const md = document.querySelector("#modalRoot .modal"); if(md) md.scrollTop = md.scrollHeight; }
+}
+
+/* ---------- Resultados ---------- */
+function closeModal(){ $("modalRoot").innerHTML = ""; }
+function seguirJugando(){ voz.callar(); closeModal(); }
+function showResults(){
+  cerrarTodo();
+  const cor = coronas();
+  const orden = teams.map((t, i) => ({t, i})).sort((a, b) => b.t.score - a.t.score);
+  const top = orden[0].t.score;
+  const items = orden.map((o, pos) => `<li class="${cor[o.i] === "oro" ? "first" : ""}">
+      <span class="pos">${pos + 1}.º</span>
+      <span class="dot" style="background:${o.t.color}"></span>
+      ${cor[o.i] ? svgCorona(cor[o.i]) : '<span class="corona-vacia"></span>'}
+      <span class="nm">${escapeHtml(o.t.name)}</span>
+      <span class="pts">${o.t.score}</span></li>`).join("");
+  const nombres = orden.filter(o => o.t.score === top).map(o => o.t.name);
+  const frase = top > 0 ? (nombres.length > 1 ? "Empate entre " : "Ganó ") + nombres.join(" y ") : "Nadie sumó puntos";
+  $("modalRoot").innerHTML = `
+    <div class="overlay">
+      <div class="modal results">
+        <div class="grande">${svgCorona("oro")}</div>
+        <h2>¡Fin del repaso!</h2>
+        <p class="gana">${escapeHtml(frase)}</p>
+        <ul class="rank">${items}</ul>
+        <div class="fila centro">
+          <button class="btn btn-ghost" onclick="seguirJugando()">Seguir jugando</button>
+          <button class="btn btn-gold" onclick="closeModal();resetScores(true)">Volver a jugar</button>
+          <button class="btn btn-ghost" onclick="closeModal();newGame(true)">Nuevos equipos</button>
+        </div>
+      </div>
+    </div>`;
+  if(top > 0) voz.decir([`¡Fin del repaso! ${frase}.`], null);
+}
+
+/* ---------- Inicio ---------- */
+document.querySelectorAll(".nTurno").forEach(e => e.textContent = T_TURNO);
+document.querySelectorAll(".nRobo").forEach(e => e.textContent = T_ROBO);
+if("speechSynthesis" in window){
+  voz.cargar();
+  try{ speechSynthesis.addEventListener("voiceschanged", () => voz.cargar()); }
+  catch(e){ speechSynthesis.onvoiceschanged = () => voz.cargar(); }
+  setTimeout(() => voz.cargar(), 1000);
+}
+buildSetup();
+</script>
+</body>
+</html>
