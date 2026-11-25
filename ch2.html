@@ -78,12 +78,6 @@
   .names input{flex:1;padding:11px 12px;border-radius:9px;border:1px solid rgba(255,255,255,.2);
     background:rgba(0,0,0,.2);color:var(--cream);font-size:15px;font-family:inherit}
   .names input:focus{outline:2px solid var(--gold);outline-offset:1px}
-  .choice{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-  .choice button{padding:12px 14px;text-align:left;background:rgba(255,255,255,.07);color:var(--cream);
-    border:1px solid rgba(255,255,255,.18);font-weight:700;font-size:15px;line-height:1.25}
-  .choice button small{display:block;font-weight:400;font-size:13px;color:var(--cream-dim);margin-top:5px;line-height:1.4}
-  .choice button.on{background:rgba(42,157,143,.22);border-color:var(--teal);box-shadow:inset 0 0 0 1px var(--teal)}
-  .choice button.on::before{content:"✓ ";color:#6fd6c8}
   .vozbox{display:grid;gap:10px;background:rgba(0,0,0,.15);border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:14px}
   .fila{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
   .fila .et{font-size:14px;min-width:140px;color:var(--cream)}
@@ -124,6 +118,11 @@
   .tb-info{display:block;color:var(--gold);font-size:13px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:3px}
   .tb-le{font-size:clamp(20px,2.4vw,28px);font-family:Georgia,serif}
   .tb-le b{color:var(--tc)}
+  .tb-bolsa{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:7px;font-size:12px;color:var(--cream-dim);
+    text-transform:uppercase;letter-spacing:1px;font-weight:700}
+  .chip{display:inline-block;font-family:Georgia,serif;font-size:15px;letter-spacing:0;text-transform:none;padding:2px 10px;
+    border-radius:999px;background:color-mix(in srgb, var(--tc) 28%, transparent);border:1px solid var(--tc);color:var(--cream)}
+  .chip.gastada{background:transparent;border-color:rgba(255,255,255,.15);color:rgba(255,255,255,.32);text-decoration:line-through}
 
   /* ---------- Tablero ---------- */
   .board{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
@@ -139,8 +138,6 @@
     font-size:clamp(20px,2.4vw,30px);line-height:1.2;font-weight:700;text-align:center;
     border:1px solid transparent;box-shadow:0 4px 0 rgba(0,0,0,.25)}
   .tile:hover{filter:brightness(1.08)}
-  .tile.ronda{box-shadow:0 0 0 3px var(--gold),0 4px 0 rgba(0,0,0,.25)}
-  .tile.pasada{opacity:.38}
   .tile.used{background:rgba(255,255,255,.04);color:rgba(255,255,255,.3);
     box-shadow:none;cursor:default;border:1px dashed rgba(255,255,255,.14)}
   .tile.used:hover{filter:none}
@@ -256,7 +253,6 @@
     .cat-h{min-height:auto}
     .cat .tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
     .tile{padding:14px 4px;font-size:18px}
-    .choice{grid-template-columns:1fr}
   }
 </style>
 </head>
@@ -276,11 +272,7 @@
     <span class="lbl">Nombres de los equipos</span>
     <div class="names" id="names"></div>
 
-    <span class="lbl">¿Cómo se elige la pregunta?</span>
-    <div class="choice" id="modoRow">
-      <button data-modo="rondas" onclick="elegirModo('rondas')">Ruleta por rondas<small>La ruleta elige el tema. El valor sube por rondas: todos juegan una de 100, luego una de 200, y así hasta 500.</small></button>
-      <button data-modo="azar" onclick="elegirModo('azar')">Ruleta, todo al azar<small>La ruleta elige el tema y el valor de cada pregunta.</small></button>
-    </div>
+    <p class="nota" style="margin-top:14px">La ruleta elige el tema y, de los valores que le quedan al equipo, el puntaje: cada equipo juega una vez cada valor (100 a 500), en desorden.</p>
 
     <span class="lbl">Voz y sonido</span>
     <div class="vozbox">
@@ -320,7 +312,8 @@
     <div class="board" id="board"></div>
 
     <p class="footnote">El borde marca al equipo al que le toca; la corona dorada, al primer lugar, y la plateada, al segundo.
-      Gira la ruleta: la voz lee la pregunta y, al terminar, corren <span class="nTurno"></span> segundos. Toca la letra que diga el equipo:
+      Gira la ruleta: elige el tema y, de los valores que le quedan al equipo, el puntaje (cada equipo juega una vez cada valor, en desorden).
+      La voz lee la pregunta y, al terminar, corren <span class="nTurno"></span> segundos. Toca la letra que diga el equipo:
       si falla, se tacha y se abre el robo (<span class="nRobo"></span> segundos y hojas en alto); cada equipo que tenga la correcta suma la mitad.
       Tocar el nombre de un equipo le da el turno; tocar una casilla la abre sin ruleta.</p>
   </section>
@@ -741,9 +734,8 @@ let teamCount = 4;
 let used = {};         // "c-r" -> {turno, acerto, robaron}
 let turn = 0;          // equipo al que le toca
 let P = null;          // la pregunta abierta
-let ajustes = {voz:true, vozNombre:"", velocidad:1, sonidos:true, modo:"rondas"};
+let ajustes = {voz:true, vozNombre:"", velocidad:1, sonidos:true};
 try{ Object.assign(ajustes, JSON.parse(localStorage.getItem(K_AJUSTES) || "{}")); }catch(e){}
-let modo = ajustes.modo === "azar" ? "azar" : "rondas";
 
 function guardarAjustes(){ try{ localStorage.setItem(K_AJUSTES, JSON.stringify(ajustes)); }catch(e){} }
 function $(id){ return document.getElementById(id); }
@@ -755,32 +747,62 @@ function usadas(){ return Object.keys(used).length; }
 function valores(){ return [...new Set(CATEGORIES.flatMap(c => c.items.map(i => i.pts)))].sort((a,b) => a - b); }
 function colorTema(c){ return TEMA_COLORES[c % TEMA_COLORES.length]; }
 
-/* ---------- Rondas y casillas que pueden salir ---------- */
-// En cada ronda todos juegan el mismo valor; cada equipo, tantas veces como quepan (6 temas / equipos).
-function porRonda(){ return Math.max(1, Math.floor(CATEGORIES.length / teams.length)) * teams.length; }
-function rondaActual(){
-  const vals = valores();
-  for(let i = 0; i < vals.length; i++){
-    const v = vals[i];
-    let hechas = 0, libres = 0;
-    CATEGORIES.forEach((cat,c) => cat.items.forEach((it,r) => { if(it.pts === v){ if(used[key(c,r)]) hechas++; else libres++; } }));
-    if(hechas < porRonda() && libres > 0) return {v, n:i + 1, de:vals.length, hechas, cupo:porRonda()};
-  }
-  return null;
+/* ---------- Valores: cada equipo juega una vez cada valor, en desorden ---------- */
+// Cada equipo tiene su bolsa con 100, 200, 300, 400 y 500 (dos o tres de cada uno si son 2 o 3 equipos)
+// y la ruleta saca de ahí sin repetir: al final todos jugaron los mismos valores, pero no en fila.
+function porEquipo(){ return Math.max(1, Math.floor(CATEGORIES.length / Math.max(1, teams.length))); }
+function bolsa(i){
+  const jugadas = {};
+  Object.keys(used).forEach(k => {
+    if(used[k].turno !== i) return;
+    const [c, r] = k.split("-").map(Number);
+    const v = CATEGORIES[c].items[r].pts;
+    jugadas[v] = (jugadas[v] || 0) + 1;
+  });
+  const out = [];
+  valores().forEach(v => { for(let n = jugadas[v] || 0; n < porEquipo(); n++) out.push(v); });
+  return out;
 }
-function totalAzar(){ return Math.floor(totalCasillas() / teams.length) * teams.length; }
+function libres(){
+  const out = [];
+  CATEGORIES.forEach((cat, c) => cat.items.forEach((it, r) => { if(!used[key(c, r)]) out.push({c, r, v:it.pts}); }));
+  return out;
+}
+function totalPreguntas(){ return Math.min(totalCasillas(), porEquipo() * valores().length * teams.length); }
+function ronda(){ const de = porEquipo() * valores().length; return {n:Math.min(de, Math.floor(usadas() / teams.length) + 1), de}; }
 function juegoTerminado(){
   if(!teams.length) return false;
-  return modo === "rondas" ? rondaActual() === null : usadas() >= totalAzar();
+  return !libres().length || teams.every((t, i) => !bolsa(i).length);
 }
-function candidatos(){
-  const out = [];
-  const ra = modo === "rondas" ? rondaActual() : null;
-  if(modo === "rondas" && !ra) return out;
-  CATEGORIES.forEach((cat,c) => cat.items.forEach((it,r) => {
-    if(!used[key(c,r)] && (!ra || it.pts === ra.v)) out.push({c, r});
-  }));
-  return out;
+// Casillas que le pueden salir al equipo: las de los valores que aún tiene en la bolsa.
+function candidatos(i){
+  const b = new Set(bolsa(i)), todas = libres();
+  const ok = todas.filter(x => b.has(x.v));
+  return ok.length ? ok : (b.size ? todas : []);
+}
+// Si al equipo en turno ya no le quedan valores (pasa sólo si se cambió el turno a mano), sigue el próximo.
+function ajustarTurno(){
+  if(juegoTerminado()) return;
+  for(let n = 0; n < teams.length && !bolsa(turn).length; n++) turn = (turn + 1) % teams.length;
+}
+// Primero el tema (entre los que tienen algo para este equipo) y luego el valor, sacado de su bolsa.
+function elegirCasilla(){
+  const cand = candidatos(turn);
+  if(!cand.length) return null;
+  const temas = [...new Set(cand.map(x => x.c))];
+  const c = temas[Math.floor(Math.random() * temas.length)];
+  const delTema = cand.filter(x => x.c === c);
+  const b = bolsa(turn);
+  const urna = delTema.flatMap(x => Array(Math.max(1, b.filter(v => v === x.v).length)).fill(x));
+  const el = urna[Math.floor(Math.random() * urna.length)];
+  return {c:el.c, r:el.r, temas:new Set(temas), valores:delTema.map(x => x.v).sort((a, b2) => a - b2)};
+}
+function chipsBolsa(i){
+  const b = bolsa(i);
+  return valores().map(v => {
+    const n = b.filter(x => x === v).length;
+    return `<span class="chip${n ? "" : " gastada"}">${v}${n > 1 ? " ×" + n : ""}</span>`;
+  }).join("");
 }
 
 /* ---------- Sonidos (sin archivos) ---------- */
@@ -919,10 +941,8 @@ function buildSetup(){
     row.appendChild(dot); row.appendChild(inp);
     nm.appendChild(row);
   }
-  pintarModo(); pintarAjustes(); pintarPendiente();
+  pintarAjustes(); pintarPendiente();
 }
-function pintarModo(){ document.querySelectorAll("#modoRow button").forEach(b => b.classList.toggle("on", b.dataset.modo === modo)); }
-function elegirModo(m){ modo = m; ajustes.modo = m; guardarAjustes(); pintarModo(); }
 function ponerVoz(si){ ajustes.voz = si; guardarAjustes(); if(!si) voz.callar(); pintarAjustes(); pintarVozBtn(); }
 function ponerSonidos(si){ ajustes.sonidos = si; guardarAjustes(); pintarAjustes(); if(si){ despertarAudio(); SON.ding(); } }
 function pintarAjustes(){
@@ -958,7 +978,7 @@ function probarVoz(){
 }
 
 /* ---------- Juego guardado (por si se recarga la página) ---------- */
-function guardar(){ try{ localStorage.setItem(K_JUEGO, JSON.stringify({teams, used, turn, modo, t:Date.now()})); }catch(e){} }
+function guardar(){ try{ localStorage.setItem(K_JUEGO, JSON.stringify({teams, used, turn, t:Date.now()})); }catch(e){} }
 function leerGuardado(){
   try{
     const g = JSON.parse(localStorage.getItem(K_JUEGO) || "null");
@@ -979,7 +999,7 @@ function pintarPendiente(){
 }
 function continuarGuardado(){
   const g = leerGuardado(); if(!g) return;
-  teams = g.teams; used = g.used; turn = g.turn || 0; modo = g.modo === "azar" ? "azar" : "rondas";
+  teams = g.teams; used = g.used; turn = g.turn || 0;
   if(turn >= teams.length) turn = 0;
   mostrarJuego();
 }
@@ -999,7 +1019,7 @@ function mostrarJuego(){
   window.scrollTo(0, 0);
   guardar(); renderAll();
 }
-function renderAll(){ renderScoreboard(); renderTurnbar(); renderBoard(); pintarVozBtn(); }
+function renderAll(){ ajustarTurno(); renderScoreboard(); renderTurnbar(); renderBoard(); pintarVozBtn(); }
 function newGame(sinPreguntar){
   if(!sinPreguntar && usadas() && !confirm("¿Volver a la pantalla de inicio? El juego queda guardado y puedes continuarlo desde ahí.")) return;
   cerrarTodo();
@@ -1060,7 +1080,7 @@ function renderScoreboard(){
   });
 }
 function adjust(i, d){ teams[i].score += d; guardar(); renderScoreboard(); }
-function darTurno(i){ if(P) return; turn = i; guardar(); renderScoreboard(); renderTurnbar(); }
+function darTurno(i){ if(P) return; turn = i; renderAll(); guardar(); }
 
 function renderTurnbar(){
   const tb = $("turnbar");
@@ -1068,14 +1088,14 @@ function renderTurnbar(){
   const t = teams[turn];
   tb.style.setProperty("--tc", t.color);
   if(juegoTerminado()){
-    tb.innerHTML = `<div><span class="tb-info">Se jugaron todas las ${modo === "rondas" ? "rondas" : "preguntas"}</span><span class="tb-le">¡Fin del juego!</span></div>
+    tb.innerHTML = `<div><span class="tb-info">Se jugaron todas las preguntas</span><span class="tb-le">¡Fin del juego!</span></div>
       <button class="btn btn-gold btn-big" onclick="showResults()">Ver resultados</button>`;
     return;
   }
-  let info;
-  if(modo === "rondas"){ const ra = rondaActual(); info = `Ronda ${ra.n} de ${ra.de} · valen ${ra.v} · pregunta ${ra.hechas + 1} de ${ra.cupo}`; }
-  else info = `Todo al azar · pregunta ${usadas() + 1} de ${totalAzar()}`;
-  tb.innerHTML = `<div><span class="tb-info">${info}</span><span class="tb-le">Le toca a <b>${escapeHtml(t.name)}</b></span></div>
+  const ro = ronda();
+  tb.innerHTML = `<div><span class="tb-info">Ronda ${ro.n} de ${ro.de} · pregunta ${Math.min(usadas() + 1, totalPreguntas())} de ${totalPreguntas()}</span>
+      <span class="tb-le">Le toca a <b>${escapeHtml(t.name)}</b></span>
+      <span class="tb-bolsa">Le quedan: ${chipsBolsa(turn)}</span></div>
     <button class="btn btn-gold btn-big" onclick="girar()">Girar la ruleta</button>`;
 }
 
@@ -1083,7 +1103,6 @@ function renderTurnbar(){
 function ganadores(u){ if(!u) return []; return u.acerto ? [u.turno] : (u.robaron || []); }
 function renderBoard(){
   const board = $("board"); board.innerHTML = "";
-  const ra = modo === "rondas" ? rondaActual() : null;
   CATEGORIES.forEach((cat, c) => {
     const col = document.createElement("div"); col.className = "cat";
     col.innerHTML = `<div class="cat-h" style="--tema:${colorTema(c)}"><span>${escapeHtml(cat.name)}</span></div>`;
@@ -1091,11 +1110,7 @@ function renderBoard(){
     cat.items.forEach((it, r) => {
       const u = used[key(c, r)];
       const tile = document.createElement("button");
-      let cls = "tile";
-      if(u) cls += " used";
-      else if(ra && it.pts === ra.v) cls += " ronda";
-      else if(ra && it.pts < ra.v) cls += " pasada";
-      tile.className = cls;
+      tile.className = "tile" + (u ? " used" : "");
       if(u){
         const quien = ganadores(u).map(i => `<i style="background:${teams[i] ? teams[i].color : "#888"}"></i>`).join("");
         tile.innerHTML = "✓" + (quien ? `<span class="quien">${quien}</span>` : "");
@@ -1163,14 +1178,14 @@ function svgRuleta(disp){
 let giroAng = 0, ruletaGen = 0;
 function girar(){
   if(P || $("ruletaRoot").innerHTML.trim() || bloqueado()) return;
+  ajustarTurno();
   if(juegoTerminado()){ showResults(); return; }
-  const cand = candidatos();
-  if(!cand.length){ showResults(); return; }
+  const el = elegirCasilla();
+  if(!el){ showResults(); return; }
   despertarAudio(); voz.callar();
   const gen = ++ruletaGen;
-  const el = cand[Math.floor(Math.random() * cand.length)];
-  const disp = new Set(cand.map(x => x.c));
-  const t = teams[turn], ra = modo === "rondas" ? rondaActual() : null;
+  const disp = el.temas;
+  const t = teams[turn], ro = ronda();
   const C = CATEGORIES.length, SEG = 360 / C;
   $("ruletaRoot").innerHTML = `
     <div class="overlay" style="--tc:${t.color}">
@@ -1181,7 +1196,8 @@ function girar(){
         </div>
         <div class="ruleta-lado">
           <div class="quien">Ruleta de <b>${escapeHtml(t.name)}</b></div>
-          <div class="nr">${ra ? `Ronda ${ra.n} de ${ra.de}: todas valen ${ra.v}` : "Tema y valor al azar"}</div>
+          <div class="nr">Ronda ${ro.n} de ${ro.de}</div>
+          <div class="tb-bolsa">Le quedan: ${chipsBolsa(turn)}</div>
           <div class="ruleta-res" id="ruletaRes"><div class="girando">Girando…</div></div>
           <div class="ruleta-acts" id="ruletaActs"><button class="btn btn-ghost" onclick="cancelarRuleta()">Cancelar</button></div>
         </div>
@@ -1239,8 +1255,9 @@ function aterrizar(el, gen){
       setTimeout(() => abrirDesdeRuleta(el.c, el.r, gen), espera);
     });
   };
-  const vals = cat.items.filter((x, r) => !used[key(el.c, r)]).map(x => x.pts);
-  if(modo === "azar" && vals.length > 1){
+  // El rodillo pasa por los valores que el equipo todavía puede sacar en este tema.
+  const vals = el.valores;
+  if(vals.length > 1){
     res.innerHTML = temaHtml + `<div class="valor" id="rodillo">${vals[0]}</div>`;
     let n = 0;
     const paso = () => {
