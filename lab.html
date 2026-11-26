@@ -299,7 +299,7 @@
     <div class="vozbox">
       <div class="fila"><span class="et">🃏 Comodines (3 por partida)</span>
         <span class="seg"><button id="comSi" onclick="ponerComodin(true)">Sí</button><button id="comNo" onclick="ponerComodin(false)">No</button></span></div>
-      <p class="nota">Tres preguntas escondidas, una en cada tercio del juego, sólo para quien no va en primer lugar. Al caer no se ve su valor: si aciertan, eligen sumar la mitad del valor de la casilla o quitarle <span class="nQuita"></span> a otro equipo (nadie baja de 0). Si fallan, se pierde y el robo sigue normal.</p>
+      <p class="nota">Tres preguntas escondidas, una en cada tercio del juego, sólo para quien no va en primer lugar. Al caer no se ve su valor: si aciertan, eligen sumar la mitad del valor de la casilla o quitarle <span class="nQuita"></span> a otro equipo (nadie baja de 0). Si fallan, se pierde y no se puede robar.</p>
       <div class="fila"><span class="et">⚡ Remontada para el último</span>
         <span class="seg"><button id="remSi" onclick="ponerRemontada(true)">Sí</button><button id="remNo" onclick="ponerRemontada(false)">No</button></span></div>
       <p class="nota">Una vez por partida, apenas se pasa la mitad de las preguntas (y antes del 65 %): si el último lugar va a <span class="nRezago"></span> puntos o más del primero, juega en ese momento su pregunta de menor valor, y si acierta suma la mitad de lo que le falta para alcanzar al primero. El primer lugar no puede robarla. No juega de más: esa pregunta sale de las suyas. Si su pregunta más barata ya vale eso o más, no hace falta y no sale.</p>
@@ -332,7 +332,7 @@
       La voz lee la pregunta y, al terminar, corren <span class="nTurno"></span> segundos. Toca la letra que diga el equipo:
       si falla, se tacha y se abre el robo (<span class="nRobo"></span> segundos y hojas en alto); cada equipo que tenga la correcta suma la mitad.
       Al pasar la mitad de las preguntas, el último lugar puede tener su ⚡ remontada: vale la mitad de lo que le falta para el primero, y el primero no la roba.
-      Hay tres 🃏 comodines escondidos para quien no va primero: si aciertan, suman la mitad o le quitan <span class="nQuita"></span> a otro equipo.
+      Hay tres 🃏 comodines escondidos para quien no va primero: si aciertan, suman la mitad o le quitan <span class="nQuita"></span> a otro equipo; si fallan, se pierde y no se roba.
       Tocar el nombre de un equipo le da el turno; tocar una casilla la abre sin ruleta.</p>
   </section>
 
@@ -882,8 +882,9 @@ function comodinParaEsta(eq){
 }
 function tomarComodin(eq){ comodin.objetivos.sort((a, b) => a - b); (comodin.jugados = comodin.jugados || []).push(eq); return comodin.objetivos.shift(); }
 // Quiénes pueden robar la pregunta abierta: todos menos el que la contestó; en la remontada, tampoco el 1.º.
+// El comodín no se roba: si fallan, se pierde y se revela la respuesta (así no se asoma su valor).
 function robadores(){
-  if(!P) return [];
+  if(!P || P.comodin) return [];
   const max = Math.max(...teams.map(t => t.score));
   return teams.map((t, i) => i).filter(i => i !== P.equipo && !(P.remontada && teams[i].score === max));
 }
@@ -1614,7 +1615,8 @@ function revelarSinRobo(intro){
   P.fase = "revelada"; P.desde = performance.now();
   const it = CATEGORIES[P.c].items[P.r];
   marcarCorrecta(); mostrarPorQue();
-  $("aviso").innerHTML = `<div class="aviso robo">${escapeHtml(intro)} Nadie puede robarla: los demás equipos van en primer lugar.</div>`;
+  const porque = P.comodin ? "El comodín no se puede robar." : "Nadie puede robarla: los demás equipos van en primer lugar.";
+  $("aviso").innerHTML = `<div class="aviso robo">${escapeHtml(intro)} ${porque}</div>`;
   voz.decir([`${intro} La respuesta correcta es la opción ${LETTERS[it.correct]}: ${it.opts[it.correct]}`], null);
   pintarAcciones();
 }
