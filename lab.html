@@ -121,7 +121,6 @@
   .tb-rem{display:block;margin-top:6px;font-size:15px;color:var(--cream);line-height:1.4;max-width:760px}
   .tb-rem b{color:var(--gold);font-family:Georgia,serif;font-size:18px}
   .modal .meta .m-rem{background:#10202f;color:var(--gold);border-radius:999px;padding:3px 10px;letter-spacing:1px}
-  .modal .meta .m-pts small{text-transform:none;letter-spacing:0;color:#7a6a3a;font-weight:600}
   .comodin-nota{margin-top:10px;background:#10202f;color:var(--gold);border-radius:10px;padding:9px 14px;font-weight:700;font-size:clamp(15px,1.6vw,18px)}
   .award button small{font-weight:400;opacity:.75}
 
@@ -862,7 +861,7 @@ function infoRemontada(){
   const cand = candidatos(eq);
   const vmin = cand.length ? Math.min(...cand.map(x => x.v)) : 0;
   const mitadBrecha = Math.round(Math.max(0, max - teams[eq].score) / 2 / 50) * 50;
-  return {equipo:eq, mitad:mitadBrecha, valor:Math.max(vmin, mitadBrecha), casilla:vmin};
+  return {equipo:eq, mitad:mitadBrecha, valor:Math.max(vmin, mitadBrecha)};
 }
 function revisarRemontada(){
   if(ajustes.remontada === false || remontada || !teams.length) return false;
@@ -1271,7 +1270,7 @@ function renderTurnbar(){
     tb.style.setProperty("--tc", COLOR_REM);
     tb.innerHTML = `<div><span class="tb-info">⚡ Remontada · ronda ${ro.n} de ${ro.de}</span>
         <span class="tb-le">Juega <b>${escapeHtml(r.name)}</b>, que va en último lugar</span>
-        <span class="tb-rem">Su pregunta de ${rem.casilla} vale <b>${rem.valor}</b> si acierta: la mitad de lo que le falta para alcanzar al primero. El primer lugar no puede robarla.</span></div>
+        <span class="tb-rem">Vale <b>${rem.valor}</b> puntos. El primer lugar no puede participar.</span></div>
       <button class="btn btn-gold btn-big" onclick="girar()">Girar la ruleta</button>`;
     return;
   }
@@ -1390,7 +1389,7 @@ function girar(){
         </div>
         <div class="ruleta-lado">
           <div class="quien">${rem ? "⚡ Remontada de" : "Ruleta de"} <b>${escapeHtml(t.name)}</b></div>
-          <div class="nr">${rem ? `Su pregunta de ${rem.casilla} vale ${rem.valor} si acierta` : `Ronda ${ro.n} de ${ro.de}`}</div>          <div class="ruleta-res" id="ruletaRes"><div class="girando">Girando…</div></div>
+          <div class="nr">${rem ? `Vale ${rem.valor} puntos. El primer lugar no puede participar.` : `Ronda ${ro.n} de ${ro.de}`}</div>          <div class="ruleta-res" id="ruletaRes"><div class="girando">Girando…</div></div>
           <div class="ruleta-acts" id="ruletaActs"><button class="btn btn-ghost" onclick="cancelarRuleta()">Cancelar</button></div>
         </div>
       </div>
@@ -1455,7 +1454,6 @@ function aterrizar(el, gen){
     const rem = infoRemontada();
     const vale = rem ? Math.max(it.pts, rem.mitad) : it.pts;
     res.innerHTML = temaHtml + `<div class="valor">${vale} <small>puntos</small></div>`
-      + (rem && vale > it.pts ? `<div class="abriendo">⚡ Remontada: la casilla es de ${it.pts}</div>` : "")
       + `<div class="abriendo">Abriendo la pregunta…</div>`;
     SON.ding();
     // Sin botón de "abrir": la pregunta se abre sola, y así ningún clic cae sobre una opción.
@@ -1555,7 +1553,7 @@ function openQuestion(c, r){
   const optsHtml = it.opts.map((o, k) =>
     `<button class="opt" id="opt-${k}" onclick="tocarLetra(${k})"><span class="lt">${LETTERS[k]}</span><span class="tx">${escapeHtml(o)}</span></button>`).join("");
   const puntos = esComodin ? '<span class="m-rem">🃏 Comodín</span>'
-    : `${rem ? '<span class="m-rem">⚡ Remontada</span>' : ""}<span class="m-pts">${valor} pts${valor !== it.pts ? ` <small>(casilla de ${it.pts})</small>` : ""}</span>`;
+    : `${rem ? '<span class="m-rem">⚡ Remontada</span>' : ""}<span class="m-pts">${valor} pts</span>`;
   $("modalRoot").innerHTML = `
     <div class="overlay">
       <div class="modal" style="--tc:${rem ? COLOR_REM : t.color}">
