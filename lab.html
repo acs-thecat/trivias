@@ -127,6 +127,8 @@
   .tb-rem b{color:var(--gold);font-family:Georgia,serif;font-size:18px}
   .modal .meta .m-rem{background:#10202f;color:var(--gold);border-radius:999px;padding:3px 10px;letter-spacing:1px}
   .modal .meta .m-pts small{text-transform:none;letter-spacing:0;color:#7a6a3a;font-weight:600}
+  .comodin-nota{margin-top:10px;background:#10202f;color:var(--gold);border-radius:10px;padding:9px 14px;font-weight:700;font-size:clamp(15px,1.6vw,18px)}
+  .award button small{font-weight:400;opacity:.75}
 
   /* ---------- Tablero ---------- */
   .board{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}
@@ -293,8 +295,11 @@
         <span class="seg"><button id="sonSi" onclick="ponerSonidos(true)">Sí</button><button id="sonNo" onclick="ponerSonidos(false)">No</button></span></div>
     </div>
 
-    <span class="lbl">Remontada</span>
+    <span class="lbl">Comodines y remontada</span>
     <div class="vozbox">
+      <div class="fila"><span class="et">🃏 Comodines (3 por partida)</span>
+        <span class="seg"><button id="comSi" onclick="ponerComodin(true)">Sí</button><button id="comNo" onclick="ponerComodin(false)">No</button></span></div>
+      <p class="nota">Tres preguntas escondidas, una en cada tercio del juego, sólo para quien no va en primer lugar. Al caer no se ve su valor: si aciertan, eligen sumar la mitad del valor de la casilla o quitarle <span class="nQuita"></span> a otro equipo (nadie baja de 0). Si fallan, se pierde y el robo sigue normal.</p>
       <div class="fila"><span class="et">⚡ Remontada para el último</span>
         <span class="seg"><button id="remSi" onclick="ponerRemontada(true)">Sí</button><button id="remNo" onclick="ponerRemontada(false)">No</button></span></div>
       <p class="nota">Una vez por partida, apenas se pasa la mitad de las preguntas (y antes del 65 %): si el último lugar va a <span class="nRezago"></span> puntos o más del primero, juega en ese momento su pregunta de menor valor, y si acierta suma la mitad de lo que le falta para alcanzar al primero. El primer lugar no puede robarla. No juega de más: esa pregunta sale de las suyas. Si su pregunta más barata ya vale eso o más, no hace falta y no sale.</p>
@@ -327,6 +332,7 @@
       La voz lee la pregunta y, al terminar, corren <span class="nTurno"></span> segundos. Toca la letra que diga el equipo:
       si falla, se tacha y se abre el robo (<span class="nRobo"></span> segundos y hojas en alto); cada equipo que tenga la correcta suma la mitad.
       Al pasar la mitad de las preguntas, el último lugar puede tener su ⚡ remontada: vale la mitad de lo que le falta para el primero, y el primero no la roba.
+      Hay tres 🃏 comodines escondidos para quien no va primero: si aciertan, suman la mitad o le quitan <span class="nQuita"></span> a otro equipo.
       Tocar el nombre de un equipo le da el turno; tocar una casilla la abre sin ruleta.</p>
   </section>
 
@@ -748,7 +754,10 @@ let turn = 0;          // equipo al que le toca
 let P = null;          // la pregunta abierta
 let remontada = null;  // null: todavía no; {pendientes, jugaron}: ya salió (o {sinRezagado} si nadie iba rezagado)
 const REM_DESDE = 0.5, REM_HASTA = 0.65, REZAGO_MIN = 500;  // ventana (fracción de preguntas) y distancia al 1.º
-let ajustes = {voz:true, vozNombre:"", velocidad:1, sonidos:true, remontada:true};
+const COLOR_REM = "#ffffff";  // la remontada va en blanco, no en el color del equipo
+let comodin = null;    // {objetivos:[n, n, n], jugados:[]}: tres preguntas escondidas, del 2.º lugar para abajo
+const COMODINES = 3, COMODIN_QUITA = 200;
+let ajustes = {voz:true, vozNombre:"", velocidad:1, sonidos:true, remontada:true, comodin:true};
 try{ Object.assign(ajustes, JSON.parse(localStorage.getItem(K_AJUSTES) || "{}")); }catch(e){}
 
 function guardarAjustes(){ try{ localStorage.setItem(K_AJUSTES, JSON.stringify(ajustes)); }catch(e){} }
@@ -847,6 +856,31 @@ function revisarRemontada(){
   return true;
 }
 function equipoActivo(){ const r = infoRemontada(); return r ? r.equipo : turn; }
+
+/* ---------- Comodines ---------- */
+// Tres preguntas escondidas por partida, una en cada tercio del juego. Sólo le tocan a un equipo que no vaya
+// en primer lugar (si le toca al primero, pasa a la siguiente pregunta). Al caer, no se ve el valor: si
+// aciertan, eligen sumar la mitad del valor de la casilla o quitarle COMODIN_QUITA a otro equipo.
+function planComodines(){
+  const T = totalPreguntas();
+  const tramos = [[0.15, 0.4], [0.4, 0.65], [0.65, 0.9]].slice(0, COMODINES);
+  const objetivos = tramos.map(([a, b]) => {
+    const lo = Math.max(2, Math.ceil(T * a) + 1), hi = Math.max(lo, Math.floor(T * b));
+    return lo + Math.floor(Math.random() * (hi - lo + 1));
+  });
+  return {objetivos, jugados:[]};
+}
+function comodinParaEsta(eq){
+  if(ajustes.comodin === false || !comodin || !comodin.objetivos.length || infoRemontada()) return false;
+  if(usadas() + 1 < Math.min(...comodin.objetivos)) return false;
+  const max = Math.max(...teams.map(t => t.score));
+  if(teams[eq].score >= max) return false;   // del segundo lugar para abajo
+  // Que no se los lleve siempre el mismo: repite sólo si todos los demás que no van primero ya tuvieron uno.
+  const ya = comodin.jugados || [];
+  if(ya.includes(eq) && teams.some((t, i) => i !== eq && t.score < max && !ya.includes(i))) return false;
+  return true;
+}
+function tomarComodin(eq){ comodin.objetivos.sort((a, b) => a - b); (comodin.jugados = comodin.jugados || []).push(eq); return comodin.objetivos.shift(); }
 // Quiénes pueden robar la pregunta abierta: todos menos el que la contestó; en la remontada, tampoco el 1.º.
 function robadores(){
   if(!P) return [];
@@ -1002,7 +1036,10 @@ function buildSetup(){
 function ponerVoz(si){ ajustes.voz = si; guardarAjustes(); if(!si) voz.callar(); pintarAjustes(); pintarVozBtn(); }
 function ponerSonidos(si){ ajustes.sonidos = si; guardarAjustes(); pintarAjustes(); if(si){ despertarAudio(); SON.ding(); } }
 function ponerRemontada(si){ ajustes.remontada = si; guardarAjustes(); pintarAjustes(); }
+function ponerComodin(si){ ajustes.comodin = si; guardarAjustes(); pintarAjustes(); }
 function pintarAjustes(){
+  $("comSi").classList.toggle("on", ajustes.comodin !== false);
+  $("comNo").classList.toggle("on", ajustes.comodin === false);
   $("remSi").classList.toggle("on", ajustes.remontada !== false);
   $("remNo").classList.toggle("on", ajustes.remontada === false);
   $("vozSi").classList.toggle("on", !!ajustes.voz);
@@ -1037,7 +1074,7 @@ function probarVoz(){
 }
 
 /* ---------- Juego guardado (por si se recarga la página) ---------- */
-function guardar(){ try{ localStorage.setItem(K_JUEGO, JSON.stringify({teams, used, turn, remontada, t:Date.now()})); }catch(e){} }
+function guardar(){ try{ localStorage.setItem(K_JUEGO, JSON.stringify({teams, used, turn, remontada, comodin, t:Date.now()})); }catch(e){} }
 function leerGuardado(){
   try{
     const g = JSON.parse(localStorage.getItem(K_JUEGO) || "null");
@@ -1060,6 +1097,7 @@ function continuarGuardado(){
   const g = leerGuardado(); if(!g) return;
   teams = g.teams; used = g.used; turn = g.turn || 0; remontada = g.remontada || null;
   if(turn >= teams.length) turn = 0;
+  comodin = g.comodin || planComodines();
   mostrarJuego();
 }
 function descartarGuardado(){ try{ localStorage.removeItem(K_JUEGO); }catch(e){} pintarPendiente(); }
@@ -1068,7 +1106,7 @@ function descartarGuardado(){ try{ localStorage.removeItem(K_JUEGO); }catch(e){}
 function startGame(){
   const inputs = [...document.querySelectorAll("#names input")];
   teams = inputs.map((inp, i) => ({name:(inp.value.trim() || ("Equipo " + (i + 1))), score:0, color:COLORS[i % COLORS.length]}));
-  used = {}; turn = 0; remontada = null;
+  used = {}; turn = 0; remontada = null; comodin = planComodines();
   mostrarJuego();
 }
 function mostrarJuego(){
@@ -1088,7 +1126,7 @@ function newGame(sinPreguntar){
 }
 function resetScores(sinPreguntar){
   if(!sinPreguntar && !confirm("¿Reiniciar el marcador? Se borran los puntos y el tablero vuelve a empezar.")) return;
-  teams.forEach(t => t.score = 0); used = {}; turn = 0; remontada = null;
+  teams.forEach(t => t.score = 0); used = {}; turn = 0; remontada = null; comodin = planComodines();
   guardar(); renderAll();
 }
 function cerrarTodo(){ voz.callar(); detenerReloj(); ruletaGen++; P = null; $("ruletaRoot").innerHTML = ""; $("modalRoot").innerHTML = ""; }
@@ -1125,7 +1163,8 @@ function renderScoreboard(){
   teams.forEach((t, i) => {
     const el = document.createElement("div");
     el.className = "team" + (i === act ? " turno" : "");
-    el.style.setProperty("--tc", t.color);
+    // La remontada se marca en blanco para que no se confunda con el color del equipo.
+    el.style.setProperty("--tc", i === act && rem ? COLOR_REM : t.color);
     el.title = i === act ? "Le toca a este equipo" : "Toca para darle el turno a este equipo";
     el.onclick = () => darTurno(i);
     el.innerHTML = `${i === act ? `<span class="letoca">${rem ? "⚡ Remontada" : "Le toca"}</span>` : ""}
@@ -1155,7 +1194,7 @@ function renderTurnbar(){
   const ro = ronda(), rem = infoRemontada();
   if(rem){
     const r = teams[rem.equipo];
-    tb.style.setProperty("--tc", r.color);
+    tb.style.setProperty("--tc", COLOR_REM);
     tb.innerHTML = `<div><span class="tb-info">⚡ Remontada · ronda ${ro.n} de ${ro.de}</span>
         <span class="tb-le">Juega <b>${escapeHtml(r.name)}</b>, que va en último lugar</span>
         <span class="tb-rem">Su pregunta de ${rem.casilla} vale <b>${rem.valor}</b> si acierta: la mitad de lo que le falta para alcanzar al primero. El primer lugar no puede robarla.</span></div>
@@ -1182,7 +1221,7 @@ function renderBoard(){
       tile.className = "tile" + (u ? " used" : "");
       if(u){
         const quien = ganadores(u).map(i => `<i style="background:${teams[i] ? teams[i].color : "#888"}"></i>`).join("");
-        tile.innerHTML = "✓" + (quien ? `<span class="quien">${quien}</span>` : "");
+        tile.innerHTML = (u.comodin ? "🃏" : "✓") + (quien ? `<span class="quien">${quien}</span>` : "");
         tile.disabled = true;
       } else {
         tile.textContent = it.pts;
@@ -1253,13 +1292,14 @@ function girar(){
   const eq = rem ? rem.equipo : turn;
   const el = elegirCasilla(eq, !!rem);
   if(!el){ showResults(); return; }
+  el.comodin = !rem && comodinParaEsta(eq);
   despertarAudio(); voz.callar();
   const gen = ++ruletaGen;
   const disp = el.temas;
   const t = teams[eq], ro = ronda();
   const C = CATEGORIES.length, SEG = 360 / C;
   $("ruletaRoot").innerHTML = `
-    <div class="overlay" style="--tc:${t.color}">
+    <div class="overlay" style="--tc:${rem ? COLOR_REM : t.color}">
       <div class="ruleta-box">
         <div class="ruleta-wrap">
           <div class="ruleta-giro" id="giro" style="transform:rotate(${giroAng}deg)">${svgRuleta(disp)}</div>
@@ -1315,6 +1355,20 @@ function aterrizar(el, gen){
   }
   const res = $("ruletaRes");
   const temaHtml = `<div class="tema"><i style="background:${colorTema(el.c)}"></i><span>${escapeHtml(cat.name)}</span></div>`;
+  // Comodín: no se ve el valor de la casilla, sólo lo que pueden elegir si aciertan.
+  const comodinFinal = () => {
+    if(gen !== ruletaGen || !$("ruletaRes")) return;
+    const x = mitad(it.pts);
+    res.innerHTML = temaHtml + `<div class="valor">🃏 <small>¡Comodín!</small></div>`
+      + `<div class="abriendo">Si aciertan, eligen: sumar ${x} o quitarle ${COMODIN_QUITA} a otro equipo.</div>`
+      + `<div class="abriendo">Abriendo la pregunta…</div>`;
+    SON.arriba();
+    const nombre = cat.name.trim();
+    voz.decir([`${nombre}${/[.?!]$/.test(nombre) ? "" : "."} ¡Comodín! Si aciertan, eligen: sumar ${x} puntos, o quitarle ${COMODIN_QUITA} a otro equipo.`], () => {
+      setTimeout(() => abrirDesdeRuleta(el.c, el.r, gen), vozActiva() ? 600 : 2600);
+    });
+  };
+  if(el.comodin){ comodinFinal(); return; }
   const final = () => {
     if(gen !== ruletaGen || !$("ruletaRes")) return;
     const rem = infoRemontada();
@@ -1413,19 +1467,24 @@ function openQuestion(c, r){
   const rem = infoRemontada();
   const eq = rem ? rem.equipo : turn, t = teams[eq];
   const valor = rem ? Math.max(it.pts, rem.mitad) : it.pts;
-  P = {c, r, equipo:eq, remontada:!!rem, valor, fase:"lectura", tachada:-1, robaron:new Set(), dio:0, agotado:false, desde:performance.now()};
+  // ¿Es comodín? (nunca en la remontada; si se cancela la pregunta, el comodín vuelve a quedar pendiente)
+  const esComodin = !rem && comodinParaEsta(eq);
+  P = {c, r, equipo:eq, remontada:!!rem, valor, fase:"lectura", tachada:-1, robaron:new Set(), dio:0, agotado:false, desde:performance.now(),
+       comodin:esComodin, objetivoComodin:esComodin ? tomarComodin(eq) : null, mitadComodin:mitad(it.pts), comodinAplicado:null};
   const optsHtml = it.opts.map((o, k) =>
     `<button class="opt" id="opt-${k}" onclick="tocarLetra(${k})"><span class="lt">${LETTERS[k]}</span><span class="tx">${escapeHtml(o)}</span></button>`).join("");
+  const puntos = esComodin ? '<span class="m-rem">🃏 Comodín</span>'
+    : `${rem ? '<span class="m-rem">⚡ Remontada</span>' : ""}<span class="m-pts">${valor} pts${valor !== it.pts ? ` <small>(casilla de ${it.pts})</small>` : ""}</span>`;
   $("modalRoot").innerHTML = `
     <div class="overlay">
-      <div class="modal" style="--tc:${t.color}">
+      <div class="modal" style="--tc:${rem ? COLOR_REM : t.color}">
         <div class="meta">
           <span class="m-tema">${escapeHtml(cat.name)}</span>
-          ${rem ? '<span class="m-rem">⚡ Remontada</span>' : ""}
-          <span class="m-pts">${valor} pts${valor !== it.pts ? ` <small>(casilla de ${it.pts})</small>` : ""}</span>
-          <span class="m-turno"><span class="dot"></span>Turno de ${escapeHtml(t.name)}</span>
+          ${puntos}
+          <span class="m-turno"><span class="dot" style="background:${t.color}"></span>Turno de ${escapeHtml(t.name)}</span>
           <button class="m-cerrar" id="mCerrar" title="Cerrar sin calificar" onclick="cerrarPregunta()">✕</button>
         </div>
+        ${esComodin ? `<div class="comodin-nota">🃏 Si aciertan, eligen: sumar ${P.mitadComodin} o quitarle ${COMODIN_QUITA} a otro equipo.</div>` : ""}
         <div class="reloj-row">
           <div class="reloj espera" id="reloj" onclick="pausarReloj()" title="Toca para pausar o seguir"><span class="r-num" id="rNum">${T_TURNO}</span><span class="r-lbl" id="rLbl"></span></div>
           <div class="barra" id="barra"><div id="barraIn"></div></div>
@@ -1479,6 +1538,16 @@ function tocarLetra(k){
   if(!P || (P.fase !== "lectura" && P.fase !== "turno") || k === P.tachada || hace(1200)) return;
   const it = CATEGORIES[P.c].items[P.r], t = teams[P.equipo];
   voz.callar(); congelarReloj();
+  if(k === it.correct && P.comodin){
+    // Comodín: en vez de los puntos de la casilla, eligen sumar la mitad o quitarle puntos a otro equipo.
+    P.fase = "comodin"; P.desde = performance.now();
+    marcarCorrecta(); mostrarPorQue();
+    $("aviso").innerHTML = `<div class="aviso bien">¡Correcto! 🃏 ${escapeHtml(t.name)}, elijan su comodín.</div>`;
+    SON.bien();
+    voz.decir([`¡Correcto! Elijan: sumar ${P.mitadComodin} puntos, o quitarle ${COMODIN_QUITA} a otro equipo.`], null);
+    pintarAcciones();
+    return;
+  }
   if(k === it.correct){
     P.fase = "acierto"; P.dio = P.valor; P.desde = performance.now();
     t.score += P.valor; guardar(); renderScoreboard();
@@ -1491,13 +1560,36 @@ function tocarLetra(k){
     P.tachada = k;
     $("opt-" + k).classList.add("tachada");
     SON.mal();
-    faseRobo("Incorrecto.");
+    faseRobo(P.comodin ? "Incorrecto: se perdió el comodín." : "Incorrecto.");
   }
 }
 function noContesto(){
   if(!P || (P.fase !== "lectura" && P.fase !== "turno") || hace(1200)) return;
   voz.callar(); congelarReloj(); SON.mal();
-  faseRobo("Se acabó el tiempo.");
+  faseRobo(P.comodin ? "Se acabó el tiempo: se perdió el comodín." : "Se acabó el tiempo.");
+}
+// Aplica la elección del comodín y deja la pregunta lista para "Continuar" (con "Me equivoqué" para deshacer).
+function usarComodin(tipo, i){
+  if(!P || P.fase !== "comodin" || hace(500)) return;
+  const t = teams[P.equipo];
+  let texto;
+  if(tipo === "sumar"){
+    t.score += P.mitadComodin;
+    P.comodinAplicado = {tipo, a:P.equipo, puntos:P.mitadComodin};
+    texto = `${t.name} suma ${P.mitadComodin} puntos.`;
+    SON.bien();
+  } else {
+    const v = teams[i], q = Math.min(COMODIN_QUITA, Math.max(0, v.score));   // nadie baja de 0
+    v.score -= q;
+    P.comodinAplicado = {tipo, a:i, puntos:q};
+    texto = `${t.name} le quita ${q} puntos a ${v.name}.`;
+    SON.mal();
+  }
+  P.fase = "acierto"; P.desde = performance.now();
+  guardar(); renderScoreboard();
+  $("aviso").innerHTML = `<div class="aviso bien">🃏 ${escapeHtml(texto)}</div>`;
+  voz.decir([texto], null);
+  pintarAcciones();
 }
 function faseRobo(intro){
   // Si nadie puede robar (dos equipos y es la remontada del último), se revela y ya.
@@ -1505,7 +1597,7 @@ function faseRobo(intro){
   P.fase = "robo"; P.desde = performance.now();
   opcionesActivas(false);
   const sinPrimero = P.remontada ? " El primer lugar no participa: es la remontada." : "";
-  $("aviso").innerHTML = `<div class="aviso robo">¡Robo! Los demás equipos escriben su letra en la hoja. Cuando el reloj llegue a cero, todos la levantan a la vez.${sinPrimero}</div>`;
+  $("aviso").innerHTML = `<div class="aviso robo">${P.comodin ? "Se perdió el comodín. " : ""}¡Robo! Los demás equipos escriben su letra en la hoja. Cuando el reloj llegue a cero, todos la levantan a la vez.${sinPrimero}</div>`;
   pintarAcciones();
   const arrancar = () => {
     if(!P || P.fase !== "robo") return;
@@ -1556,14 +1648,23 @@ function confirmarRobo(){
   if(!P || P.fase !== "revelada" || hace(500)) return;
   const m = mitad(P.valor), lista = [...P.robaron];
   lista.forEach(i => teams[i].score += m);
-  terminarPregunta({turno:P.equipo, acerto:false, robaron:lista});
+  terminarPregunta(Object.assign({turno:P.equipo, acerto:false, robaron:lista}, P.comodin ? {comodin:{perdido:true}} : {}));
 }
-function continuar(){ if(!P || P.fase !== "acierto" || hace(500)) return; terminarPregunta({turno:P.equipo, acerto:true, robaron:[]}); }
+function continuar(){
+  if(!P || P.fase !== "acierto" || hace(500)) return;
+  terminarPregunta(Object.assign({turno:P.equipo, acerto:true, robaron:[]}, P.comodinAplicado ? {comodin:P.comodinAplicado} : {}));
+}
 function deshacer(){
-  if(!P || !["acierto","robo","arriba"].includes(P.fase)) return;
+  if(!P || !["acierto","robo","arriba","comodin"].includes(P.fase)) return;
   voz.callar(); detenerReloj();
   const it = CATEGORIES[P.c].items[P.r];
-  if(P.fase === "acierto" && P.dio){ teams[P.equipo].score -= P.dio; P.dio = 0; guardar(); renderScoreboard(); }
+  if(P.fase === "acierto" && P.dio){ teams[P.equipo].score -= P.dio; P.dio = 0; }
+  if(P.comodinAplicado){
+    const d = P.comodinAplicado;
+    teams[d.a].score += d.tipo === "sumar" ? -d.puntos : d.puntos;
+    P.comodinAplicado = null;
+  }
+  guardar(); renderScoreboard();
   if(P.tachada >= 0){ const o = $("opt-" + P.tachada); if(o) o.classList.remove("tachada"); P.tachada = -1; }
   const oc = $("opt-" + it.correct); if(oc) oc.classList.remove("correct");
   $("explBox").innerHTML = ""; $("aviso").innerHTML = "";
@@ -1602,6 +1703,10 @@ function cerrarPregunta(){
   if(!P || (P.fase !== "lectura" && P.fase !== "turno")) return;
   if(!confirm("¿Cerrar sin calificar? La casilla queda libre y el turno no cambia.")) return;
   voz.callar(); detenerReloj();
+  if(P.comodin && P.objetivoComodin != null){   // el comodín no se gasta
+    comodin.objetivos.push(P.objetivoComodin);
+    const k = comodin.jugados.lastIndexOf(P.equipo); if(k >= 0) comodin.jugados.splice(k, 1);
+  }
   P = null; $("modalRoot").innerHTML = "";
   bloquear(); renderAll();
 }
@@ -1610,7 +1715,7 @@ function pintarAcciones(){
   const a = $("actions"), t = teams[P.equipo];
   const x = $("mCerrar"); if(x) x.classList.toggle("hide", !(P.fase === "lectura" || P.fase === "turno"));
   // Ya resuelta la pregunta, el reloj sobra: se esconde para que quepan los botones.
-  const resuelta = P.fase === "acierto" || P.fase === "revelada";
+  const resuelta = P.fase === "acierto" || P.fase === "revelada" || P.fase === "comodin";
   const fr = document.querySelector("#modalRoot .reloj-row"); if(fr) fr.classList.toggle("hide", resuelta);
   let h = "";
   if(P.fase === "lectura" || P.fase === "turno"){
@@ -1618,6 +1723,13 @@ function pintarAcciones(){
       + (vozActiva() ? `<button class="btn btn-line" onclick="repetir()">🔊 Repetir</button>` : "")
       + (P.fase === "lectura" && vozActiva() ? `<button class="btn btn-line" onclick="callarYEmpezar()">Callar y empezar el tiempo</button>` : "")
       + `<button class="btn ${P.agotado ? "btn-warn pulso" : "btn-line"}" onclick="noContesto()">${P.agotado ? "Se acabó el tiempo: abrir el robo" : "No contestó: abrir el robo"}</button>`;
+  } else if(P.fase === "comodin"){
+    const otros = teams.map((e, i) => ({e, i})).filter(o => o.i !== P.equipo);
+    h = `<div class="award-label">🃏 Elijan una:</div>
+      <div class="award"><button class="confirmar" style="margin-left:0" onclick="usarComodin('sumar')">Sumar ${P.mitadComodin} a ${escapeHtml(t.name)}</button></div>
+      <div class="award-label">o quitarle ${COMODIN_QUITA} a:</div>
+      <div class="award">${otros.map(o => `<button style="--c:${o.e.color}" onclick="usarComodin('quitar', ${o.i})">${escapeHtml(o.e.name)} <small>(${o.e.score})</small></button>`).join("")}</div>
+      <button class="btn btn-line" onclick="deshacer()">↩ Me equivoqué de letra</button>`;
   } else if(P.fase === "acierto"){
     h = `<button class="btn btn-dark btn-big" onclick="continuar()">Continuar ▸</button>
       <button class="btn btn-line" onclick="deshacer()">↩ Me equivoqué de letra</button>`;
@@ -1677,6 +1789,7 @@ function showResults(){
 document.querySelectorAll(".nTurno").forEach(e => e.textContent = T_TURNO);
 document.querySelectorAll(".nRobo").forEach(e => e.textContent = T_ROBO);
 document.querySelectorAll(".nRezago").forEach(e => e.textContent = REZAGO_MIN);
+document.querySelectorAll(".nQuita").forEach(e => e.textContent = COMODIN_QUITA);
 if("speechSynthesis" in window){
   voz.cargar();
   try{ speechSynthesis.addEventListener("voiceschanged", () => voz.cargar()); }
