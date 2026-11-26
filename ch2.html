@@ -292,7 +292,7 @@
     <span class="lbl">Nombres de los equipos</span>
     <div class="names" id="names"></div>
 
-    <p class="nota" style="margin-top:14px">La ruleta elige el tema y, de los valores que le quedan al equipo, el puntaje: cada equipo juega una vez cada valor (100 a 500), en desorden.</p>
+    <p class="nota" style="margin-top:14px">La ruleta elige el tema y, de los valores que le quedan al equipo, el puntaje: cada equipo juega una vez cada valor (100 a 500), en desorden. Los temas van como baraja: cada equipo pasa por todos antes de repetir uno, y el mismo tema no sale dos veces seguidas.</p>
 
     <span class="lbl">Voz y sonido</span>
     <div class="vozbox">
@@ -835,14 +835,30 @@ function ajustarTurno(){
   if(juegoTerminado()) return;
   for(let n = 0; n < teams.length && !bolsa(turn).length; n++) turn = (turn + 1) % teams.length;
 }
-// Primero el tema (entre los que tienen algo para este equipo) y luego el valor, sacado de su bolsa.
-// En la remontada sólo entra el valor más bajo que le quede (la pregunta más fácil).
+// Primero el tema y luego el valor, sacado de su bolsa. En la remontada sólo entra el valor más bajo que le
+// quede (la pregunta más fácil).
+// El tema no se sortea a ciegas: así salían rachas (con 2 equipos, 72 % de las veces un equipo repetía tema en
+// sus primeras 4 tiradas y había unas 5 repeticiones seguidas por partida). Ahora va como baraja: a cada equipo
+// le sale uno de los temas que menos ha jugado (pasa por todos antes de repetir) y, si hay otro, nunca el de la
+// pregunta anterior ni el último que le salió a él. La ruleta sigue encendiendo todos los temas que le quedan.
 function elegirCasilla(eq, minimo){
   let cand = candidatos(eq);
   if(!cand.length) return null;
   if(minimo){ const vmin = Math.min(...cand.map(x => x.v)); cand = cand.filter(x => x.v === vmin); }
   const temas = [...new Set(cand.map(x => x.c))];
-  const c = temas[Math.floor(Math.random() * temas.length)];
+  // Las llaves de "used" quedan en el orden en que se jugaron (también al recargar el juego guardado).
+  const jugadas = Object.keys(used).filter(k => !used[k].duelo).map(k => ({c:+k.split("-")[0], eq:used[k].turno}));
+  const propias = jugadas.filter(j => j.eq === eq);
+  const veces = {};
+  propias.forEach(j => { veces[j.c] = (veces[j.c] || 0) + 1; });
+  const evitar = new Set();
+  if(jugadas.length) evitar.add(jugadas[jugadas.length - 1].c);
+  if(propias.length) evitar.add(propias[propias.length - 1].c);
+  let baraja = temas.filter(t => !evitar.has(t));
+  if(!baraja.length) baraja = temas;
+  const menos = Math.min(...baraja.map(t => veces[t] || 0));
+  baraja = baraja.filter(t => (veces[t] || 0) === menos);
+  const c = baraja[Math.floor(Math.random() * baraja.length)];
   const delTema = cand.filter(x => x.c === c);
   const b = bolsa(eq);
   const urna = delTema.flatMap(x => Array(Math.max(1, b.filter(v => v === x.v).length)).fill(x));
