@@ -118,11 +118,6 @@
   .tb-info{display:block;color:var(--gold);font-size:13px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;margin-bottom:3px}
   .tb-le{font-size:clamp(20px,2.4vw,28px);font-family:Georgia,serif}
   .tb-le b{color:var(--tc)}
-  .tb-bolsa{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:7px;font-size:12px;color:var(--cream-dim);
-    text-transform:uppercase;letter-spacing:1px;font-weight:700}
-  .chip{display:inline-block;font-family:Georgia,serif;font-size:15px;letter-spacing:0;text-transform:none;padding:2px 10px;
-    border-radius:999px;background:color-mix(in srgb, var(--tc) 28%, transparent);border:1px solid var(--tc);color:var(--cream)}
-  .chip.gastada{background:transparent;border-color:rgba(255,255,255,.15);color:rgba(255,255,255,.32);text-decoration:line-through}
   .tb-rem{display:block;margin-top:6px;font-size:15px;color:var(--cream);line-height:1.4;max-width:760px}
   .tb-rem b{color:var(--gold);font-family:Georgia,serif;font-size:18px}
   .modal .meta .m-rem{background:#10202f;color:var(--gold);border-radius:999px;padding:3px 10px;letter-spacing:1px}
@@ -147,8 +142,6 @@
   .tile.used{background:rgba(255,255,255,.04);color:rgba(255,255,255,.3);
     box-shadow:none;cursor:default;border:1px dashed rgba(255,255,255,.14)}
   .tile.used:hover{filter:none}
-  .tile .quien{position:absolute;left:0;right:0;bottom:5px;display:flex;gap:4px;justify-content:center}
-  .tile .quien i{width:10px;height:10px;border-radius:50%;display:inline-block}
 
   /* ---------- Capas ---------- */
   .overlay{position:fixed;inset:0;background:rgba(6,16,28,.86);backdrop-filter:blur(3px);
@@ -275,6 +268,9 @@
     .cat-h{min-height:auto}
     .cat .tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}
     .tile{padding:14px 4px;font-size:18px}
+  }
+  @media(max-width:560px){
+    .team{flex:1 1 100%}
   }
 </style>
 </head>
@@ -917,13 +913,6 @@ function robadores(){
   const max = Math.max(...teams.map(t => t.score));
   return teams.map((t, i) => i).filter(i => i !== P.equipo && !(P.remontada && teams[i].score === max));
 }
-function chipsBolsa(i){
-  const b = bolsa(i);
-  return valores().map(v => {
-    const n = b.filter(x => x === v).length;
-    return `<span class="chip${n ? "" : " gastada"}">${v}${n > 1 ? " ×" + n : ""}</span>`;
-  }).join("");
-}
 
 /* ---------- Sonidos (sin archivos) ---------- */
 let actx = null;
@@ -1283,13 +1272,11 @@ function renderTurnbar(){
     return;
   }
   tb.innerHTML = `<div><span class="tb-info">${ro.n === ro.de ? "🏁 Última ronda" : `Ronda ${ro.n} de ${ro.de}`} · pregunta ${Math.min(usadas() + 1, totalPreguntas())} de ${totalPreguntas()}</span>
-      <span class="tb-le">Le toca a <b>${escapeHtml(t.name)}</b></span>
-      <span class="tb-bolsa">Le quedan: ${chipsBolsa(turn)}</span></div>
+      <span class="tb-le">Le toca a <b>${escapeHtml(t.name)}</b></span></div>
     <button class="btn btn-gold btn-big" onclick="girar()">Girar la ruleta</button>`;
 }
 
 /* ---------- Tablero ---------- */
-function ganadores(u){ if(!u) return []; return u.acerto ? [u.turno] : (u.robaron || []); }
 function renderBoard(){
   const board = $("board"); board.innerHTML = "";
   CATEGORIES.forEach((cat, c) => {
@@ -1301,8 +1288,8 @@ function renderBoard(){
       const tile = document.createElement("button");
       tile.className = "tile" + (u ? " used" : "");
       if(u){
-        const quien = ganadores(u).map(i => `<i style="background:${teams[i] ? teams[i].color : "#888"}"></i>`).join("");
-        tile.innerHTML = (u.duelo ? "⚔️" : u.comodin ? "🃏" : "✓") + (quien ? `<span class="quien">${quien}</span>` : "");
+        // Sólo la marca: sin puntitos de quién la ganó (distraían y el grupo preguntaba qué eran).
+        tile.textContent = u.duelo ? "⚔️" : u.comodin ? "🃏" : "✓";
         tile.disabled = true;
       } else {
         tile.textContent = it.pts;
@@ -1388,9 +1375,7 @@ function girar(){
         </div>
         <div class="ruleta-lado">
           <div class="quien">${rem ? "⚡ Remontada de" : "Ruleta de"} <b>${escapeHtml(t.name)}</b></div>
-          <div class="nr">${rem ? `Su pregunta de ${rem.casilla} vale ${rem.valor} si acierta` : `Ronda ${ro.n} de ${ro.de}`}</div>
-          <div class="tb-bolsa">Le quedan: ${chipsBolsa(eq)}</div>
-          <div class="ruleta-res" id="ruletaRes"><div class="girando">Girando…</div></div>
+          <div class="nr">${rem ? `Su pregunta de ${rem.casilla} vale ${rem.valor} si acierta` : `Ronda ${ro.n} de ${ro.de}`}</div>          <div class="ruleta-res" id="ruletaRes"><div class="girando">Girando…</div></div>
           <div class="ruleta-acts" id="ruletaActs"><button class="btn btn-ghost" onclick="cancelarRuleta()">Cancelar</button></div>
         </div>
       </div>
