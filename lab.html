@@ -332,6 +332,7 @@
       </div>
       <div class="topbtns">
         <button class="btn btn-ghost" id="vozBtn" onclick="alternarVoz()">Voz</button>
+        <button class="btn btn-ghost" id="tableroBtn" onclick="alternarTablero()" title="El tablero va oculto para que la atención esté en la ruleta. Tocar una casilla la abre sin ruleta.">Ver tablero</button>
         <button class="btn btn-gold" onclick="terminarJuego()">Terminar y ver resultados</button>
         <button class="btn btn-ghost" onclick="resetScores()">Reiniciar marcador</button>
         <button class="btn btn-ghost" onclick="newGame()">Nuevo juego</button>
@@ -340,7 +341,7 @@
 
     <div class="scoreboard" id="scoreboard"></div>
     <div class="turnbar" id="turnbar"></div>
-    <div class="board" id="board"></div>
+    <div class="board hide" id="board"></div>
 
     <p class="footnote">El borde marca al equipo al que le toca; la corona dorada, al primer lugar, y la plateada, al segundo.
       Gira la ruleta: elige el tema y, de los valores que le quedan al equipo, el puntaje (cada equipo juega una vez cada valor, en desorden).
@@ -349,7 +350,7 @@
       Al pasar la mitad de las preguntas, el último lugar puede tener su ⚡ remontada: vale la mitad de lo que le falta para el primero, y el primero no la roba.
       Hay tres 🃏 comodines escondidos para quien no va primero: si aciertan, suman la mitad o le quitan <span class="nQuita"></span> a otro equipo; si fallan, se pierde y no se roba.
       Al llegar a la 🏁 última ronda se anuncia; si al final el 1.º y el 2.º quedan muy cerca, se decide con ⚔️ muerte súbita.
-      Tocar el nombre de un equipo le da el turno; tocar una casilla la abre sin ruleta.</p>
+      Tocar el nombre de un equipo le da el turno.</p>
   </section>
 
 </div>
@@ -779,6 +780,7 @@ const DUELO_MAX = 150, DUELO_TERCERO = 300, DUELO_PREMIO = 200;
 let duelo = null;      // null: no se ha ofrecido; {hecho, ganador, a, b}
 let D = null;          // la pregunta abierta de la muerte súbita
 let partidaId = "", grupo = "";
+let verTablero = false; // el tablero va oculto: la atención va a la ruleta (Adrián, 25 nov 2026)
 // Estadísticas: cada pregunta jugada va a la hoja "Estadísticas de trivias" (Apps Script "Trivias - estadisticas").
 const HOJA_TRIVIAS = "https://script.google.com/macros/s/AKfycbzMxG3WOasPLW1NQ9o1_eBS8s8RuhuuifIP-AlxpQIoWsKPNVg9aqmJOqkEOsOLz4WI/exec";
 const K_COLA = "trivias:cola";
@@ -1136,6 +1138,7 @@ function mostrarJuego(){
   $("setup").classList.add("hide");
   $("game").classList.remove("hide");
   $("grupoTxt").textContent = grupo || "semestre";
+  verTablero = false;
   window.scrollTo(0, 0);
   guardar(); renderAll();
 }
@@ -1294,12 +1297,23 @@ function renderBoard(){
       } else {
         tile.textContent = it.pts;
         tile.title = "Abrir esta pregunta sin ruleta";
-        tile.onclick = () => { if(!bloqueado()) openQuestion(c, r); };
+        tile.onclick = () => {
+          if(bloqueado() || P) return;
+          verTablero = false; renderBoard();   // que no se quede proyectado al cerrar la pregunta
+          openQuestion(c, r);
+        };
       }
       tiles.appendChild(tile);
     });
     col.appendChild(tiles); board.appendChild(col);
   });
+  board.classList.toggle("hide", !verTablero);
+  const b = $("tableroBtn"); if(b) b.textContent = verTablero ? "Ocultar tablero" : "Ver tablero";
+}
+// Sólo para el profesor: el tablero no se proyecta salvo que haga falta abrir una casilla a mano.
+function alternarTablero(){
+  verTablero = !verTablero; renderBoard();
+  if(verTablero) $("board").scrollIntoView({block:"nearest", behavior:"smooth"});
 }
 
 /* ---------- Ruleta ---------- */
