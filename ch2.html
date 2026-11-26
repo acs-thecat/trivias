@@ -760,7 +760,7 @@ const LETTERS = ["A","B","C","D"];
 // Sin dorado: el dorado queda sólo para la corona del primer lugar.
 const COLORS = ["#2a9d8f","#e76f51","#5fa8e6","#b48ad9","#6fc28b","#f06292"];
 const TEMA_COLORES = ["#e63946","#f3722c","#d4a017","#2a9d4f","#1d7fd1","#8e44ad","#c2185b","#00897b"];
-const T_TURNO = 37;   // segundos del equipo en turno; con voz, corren cuando termina de leer
+const T_TURNO = 22;   // segundos del equipo en turno; con voz, corren cuando termina de leer
 const T_ROBO = 10;    // segundos para que los demás escriban su letra
 const K_JUEGO = "trivia:" + CLAVE + ":juego";
 const K_AJUSTES = "trivia:" + CLAVE + ":ajustes";
@@ -879,23 +879,35 @@ function infoRemontada(){
   const mitadBrecha = Math.round(Math.max(0, max - teams[eq].score) / 2 / 50) * 50;
   return {equipo:eq, mitad:mitadBrecha, valor:Math.max(vmin, mitadBrecha)};
 }
+// Además de la remontada de la mitad del juego hay dos "relámpago" fijas, al empezar las rondas 7 y 8
+// (Adrián, 26 nov 2026). Ninguna le toca dos veces seguidas al mismo equipo: si sólo él califica, no sale.
+const RONDAS_RELAMPAGO = [7, 8];
 function revisarRemontada(){
-  if(ajustes.remontada === false || remontada || !teams.length) return false;
-  const T = totalPreguntas(), h = usadas();
-  if(h < Math.ceil(T * REM_DESDE)) return false;
-  if(h >= Math.ceil(T * REM_HASTA)){ remontada = {pendientes:[], jugaron:[], sinRezagado:true}; return false; }
+  if(ajustes.remontada === false || !teams.length) return false;
+  if(remontada && remontada.pendientes && remontada.pendientes.length) return false;
+  // Juego guardado con la versión anterior: su remontada de la mitad ya se resolvió.
+  if(remontada && !remontada.rondas){ remontada.rondas = []; remontada.normal = true; remontada.ultimos = remontada.jugaron || []; }
+  remontada = remontada || {pendientes:[], jugaron:[], rondas:[], normal:false, ultimos:[]};
+  const T = totalPreguntas(), h = usadas(), n = ronda().n;
+  let puerta = null;
+  if(RONDAS_RELAMPAGO.includes(n) && !remontada.rondas.includes(n)) puerta = n;
+  else if(!remontada.normal && h >= Math.ceil(T * REM_DESDE)){
+    if(h >= Math.ceil(T * REM_HASTA)){ remontada.normal = true; return false; }
+    puerta = "mitad";
+  }
+  if(puerta === null) return false;
   const sc = teams.map(t => t.score), max = Math.max(...sc), min = Math.min(...sc);
   if(max - min < REZAGO_MIN) return false;
-  // Sólo si de verdad le sube el valor: si va atrás sólo porque sacó primero sus valores bajos, su pregunta
-  // más barata ya vale eso o más y no hace falta. Si hay empate en el último lugar, la juegan todos,
+  // Sólo si de verdad le sube el valor. Si hay empate en el último lugar, la juegan todos,
   // empezando por el que tiene el turno o el que sigue.
   const mitadBrecha = Math.round((max - min) / 2 / 50) * 50;
   const sirve = i => { const c = candidatos(i); return c.length && mitadBrecha > Math.min(...c.map(x => x.v)); };
   const ultimos = teams.map((t, i) => (i - turn + teams.length) % teams.length)
     .sort((a, b) => a - b).map(d => (turn + d) % teams.length)
-    .filter(i => teams[i].score === min && bolsa(i).length && sirve(i));
+    .filter(i => teams[i].score === min && bolsa(i).length && sirve(i) && !(remontada.ultimos || []).includes(i));
   if(!ultimos.length) return false;
-  remontada = {pendientes:ultimos, jugaron:[]};
+  if(puerta === "mitad") remontada.normal = true; else remontada.rondas.push(puerta);
+  remontada.pendientes = ultimos; remontada.ultimos = ultimos.slice();
   return true;
 }
 function equipoActivo(){ const r = infoRemontada(); return r ? r.equipo : turn; }
@@ -921,6 +933,7 @@ function comodinParaEsta(eq){
   // Que no se los lleve siempre el mismo: repite sólo si todos los demás que no van primero ya tuvieron uno.
   const ya = comodin.jugados || [];
   if(ya.includes(eq) && teams.some((t, i) => i !== eq && t.score < max && !ya.includes(i))) return false;
+  if(ya.length && ya[ya.length - 1] === eq) return false;   // nunca dos comodines seguidos al mismo equipo
   return true;
 }
 function tomarComodin(eq){ comodin.objetivos.sort((a, b) => a - b); (comodin.jugados = comodin.jugados || []).push(eq); return comodin.objetivos.shift(); }
